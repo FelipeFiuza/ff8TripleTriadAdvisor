@@ -33,7 +33,8 @@ Although simple in the beginning, this game add some complexity later on, and be
 - Ajustar EvaluateCardPlay para contemplar as regras Same, Plus, SameWall
 - Funcao de calcular placar - ok
 - Funcao print Game envolvendo printBoard, printCardHand e placar - ok
-- Substituir menções a eixos X e Y por 
+- Substituir menções a eixos X e Y por linhas e colunas
+- Passagem de slot por ID
 
     Round	Cards On Hand	Spots Available	Possible Plays	Aggregated Possibilities	Possible Scenarios
         1	            5	              9	            45	                      45	        5225472000
@@ -82,7 +83,8 @@ typedef struct Card
 
 typedef struct Slot
 {
-	int UpValue,
+	int Id,
+		UpValue,
         RightValue,
         DownValue,
         LeftValue;
@@ -140,16 +142,17 @@ typedef struct AffectedSlot
 	int SubtractionFieldValue,
 		SubtractionCardValue,
 		Sum;
-	char Possible,
-		 ComboAffected,
-	     SameWallEvent;
+	char Valid,
+	     SameWallTrigger,
+		 Turned;
 
 } AffectedSlot;
 
 typedef struct AffectedSlots
 {
 	AffectedSlot AffSlot[4];
-	char Combo;
+	char Combo,
+		 SameWallEvent;
 
 } AffectedSlots;
 
@@ -673,6 +676,7 @@ Game initGame(void)
 		{
 			Game.Board.Slot[x][y].Element = 'N';
 			Game.Board.Slot[x][y].Occupied = 'N';
+			Game.Board.Slot[x][y].Id = 3 * x + y;
 		}
 
 	Game.Player[0].Color = 'B';
@@ -686,25 +690,14 @@ Game initGame(void)
 	return Game;
 }
 
-void Test(Game *game)
-{
-
-	long int BlueCards[] = {9628, 4556, 3736, 2367, 6316};
-	long int RedCards[] = {7444, 5135, 3453, 2161, 2126};
-
-	LoadCardsAuto(&game->Player[0], BlueCards);
-	LoadCardsAuto(&game->Player[1], RedCards);
-
-}
-
-AffectedSlot AssignAffectedSlot(Game *game, int slot, int xOffset, int yOffset)
+AffectedSlot AssignAffectedSlot(Game *game, int slotNo, int xOffset, int yOffset)
 {
 	int xSlot, ySlot, xCombined, yCombined, 
 		lastPlayedClashingValue, affectedSlotClashingValue,
 		*lastPlayedFieldValue, *affectedSlotFieldValue,
 		*lastPlayedCardValue, *affectedSlotCardValue;
-	xSlot = (slot-1) / 3;
-	ySlot = (slot-1) % 3;
+	xSlot = (slotNo-1) / 3;
+	ySlot = (slotNo-1) % 3;
 	xCombined = xSlot + xOffset;
 	yCombined = ySlot + yOffset;
 	Slot *lastPlayed = &game->Board.Slot[xSlot][ySlot];
@@ -712,27 +705,27 @@ AffectedSlot AssignAffectedSlot(Game *game, int slot, int xOffset, int yOffset)
 
 	if(!(xCombined >= 0 && xCombined <= 2 && yCombined >= 0 && yCombined <= 2))
 	{
-		affectedSlot.Possible = 'N';
+		affectedSlot.Valid = 'N';
 
 		if(xOffset == 1)
 		{
 			if(lastPlayed->Card->DownValue == 10)
-				affectedSlot.SameWallEvent = 'Y';
+				affectedSlot.SameWallTrigger = 'Y';
 		}
 		else if(xOffset == -1)
 		{
 			if(lastPlayed->Card->UpValue == 10)
-				affectedSlot.SameWallEvent = 'Y';
+				affectedSlot.SameWallTrigger = 'Y';
 		}
 		else if(yOffset == 1)
 		{
 			if(lastPlayed->Card->RightValue == 10)
-				affectedSlot.SameWallEvent = 'Y';
+				affectedSlot.SameWallTrigger = 'Y';
 		}
 		else if(yOffset == -1)
 		{
 			if(lastPlayed->Card->LeftValue == 10)
-				affectedSlot.SameWallEvent = 'Y';
+				affectedSlot.SameWallTrigger = 'Y';
 		}
 
 		return affectedSlot;
@@ -741,8 +734,8 @@ AffectedSlot AssignAffectedSlot(Game *game, int slot, int xOffset, int yOffset)
 	{
 		if(game->Board.Slot[xCombined][yCombined].Occupied == 'N')
 		{
-			affectedSlot.Possible = 'N';
-			affectedSlot.SameWallEvent = 'N';
+			affectedSlot.Valid = 'N';
+			affectedSlot.SameWallTrigger = 'N';
 
 			return affectedSlot;
 		}
@@ -769,7 +762,7 @@ AffectedSlot AssignAffectedSlot(Game *game, int slot, int xOffset, int yOffset)
 		}
 
 		affectedSlot.Slot = &game->Board.Slot[xCombined][yCombined];
-		affectedSlot.Possible = 'Y';
+		affectedSlot.Valid = 'Y';
 
 		lastPlayedFieldValue = &lastPlayed->UpValue + lastPlayedClashingValue;
 		lastPlayedCardValue = &lastPlayed->Card->UpValue + lastPlayedClashingValue;
@@ -780,83 +773,104 @@ AffectedSlot AssignAffectedSlot(Game *game, int slot, int xOffset, int yOffset)
 		affectedSlot.SubtractionFieldValue = *lastPlayedFieldValue - *affectedSlotFieldValue;
 		affectedSlot.SubtractionCardValue = *lastPlayedCardValue - *affectedSlotCardValue;
 		affectedSlot.Sum = *lastPlayedCardValue + *affectedSlotCardValue;
-		affectedSlot.SameWallEvent = 'N';
+		affectedSlot.SameWallTrigger = 'N';
 		printf("x=%i, y=%i, aff=%i, lp=%i", xOffset, yOffset, *affectedSlotFieldValue, *lastPlayedFieldValue);
 
-		if(affectedSlot.Slot->Card->Color != lastPlayed->Card->Color && 
-		  (affectedSlot.SubtractionCardValue == 0 || affectedSlot.SubtractionFieldValue > 0))
-			affectedSlot.ComboAffected = 'Y';
-		else
-			affectedSlot.ComboAffected = 'N';
-
-		if(affectedSlot.SubtractionFieldValue > 0 && affectedSlot.Slot->Card->Color != lastPlayed->Card->Color)
-			affectedSlot.Slot->Card->Color = lastPlayed->Card->Color;
-
 		return affectedSlot;
-
 	}
 }
 
-void EvaluateCardPlay (Game *game, int slot)
+void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 {
+	int i, j = 0;
+	Slot *currentSlot = &game->Board.Slot[(slotNo-1)/3][(slotNo-1)%3];
 	AffectedSlots affectedSlots;
-	affectedSlots.AffSlot[0] = AssignAffectedSlot(game, slot, 0 , 1);
-	affectedSlots.AffSlot[1] = AssignAffectedSlot(game, slot, 1 , 0);
-	affectedSlots.AffSlot[2] = AssignAffectedSlot(game, slot, 0 , -1);
-	affectedSlots.AffSlot[3] = AssignAffectedSlot(game, slot, -1 , 0);
+	affectedSlots.AffSlot[0] = AssignAffectedSlot(game, slotNo, -1, 0);
+	affectedSlots.AffSlot[1] = AssignAffectedSlot(game, slotNo, 0 , 1);
+	affectedSlots.AffSlot[2] = AssignAffectedSlot(game, slotNo, 1 , 0);
+	affectedSlots.AffSlot[3] = AssignAffectedSlot(game, slotNo, 0 , -1);
+	char lastPlayedColor = currentSlot->Card->Color,
+		 comboEvent = 'N';
 
-	/*int i, xSlot, ySlot, slotsPossible[] = {0, 0, 0, 0}, subtr[] = {10, 10, 10, 10};
-	xSlot = (slot-1) / 3;
-	ySlot = (slot-1) % 3;
-	Slot *slotsAffected[4], *lastPlayed = &game->Board.Slot[xSlot][ySlot];
-
-	//Obtain upper affected slot
-	if (xSlot > 0 && 
-		game->Board.Slot[xSlot - 1][ySlot].Occupied == 'Y' && 
-		game->Board.Slot[xSlot - 1][ySlot].Card->Color != lastPlayed->Card->Color)
-	{
-		slotsAffected[0] = &game->Board.Slot[xSlot - 1][ySlot];
-		subtr[0] = lastPlayed->UpValue - slotsAffected[0]->DownValue;
-		slotsPossible[0] = 1;
-	}
-
-	//Obtain right affected slot
-	if (ySlot < 2 && game->Board.Slot[xSlot][ySlot + 1].Occupied == 'Y' && game->Board.Slot[xSlot][ySlot + 1].Card->Color != lastPlayed->Card->Color)
-	{
-		slotsAffected[1] = &game->Board.Slot[xSlot][ySlot + 1];
-		subtr[1] = lastPlayed->RightValue - slotsAffected[1]->LeftValue;
-		int *i, *j, *k;
-		i = &lastPlayed->UpValue;
-		j = &lastPlayed->RightValue;
-		k = i + 2;
-		printf("%p, %p, %p", i, j, k);
-		slotsPossible[1] = 1;
-	}
-
-	//Obtain bottom affected slot
-	if (xSlot < 2 && game->Board.Slot[xSlot + 1][ySlot].Occupied == 'Y' && game->Board.Slot[xSlot + 1][ySlot].Card->Color != lastPlayed->Card->Color)
-	{
-		slotsAffected[2] = &game->Board.Slot[xSlot + 1][ySlot];
-		subtr[2] = lastPlayed->DownValue - slotsAffected[2]->UpValue;
-		slotsPossible[2] = 1;
-	}
-
-	//Obtain left affected slot
-	if (ySlot > 0 && game->Board.Slot[xSlot][ySlot - 1].Occupied == 'Y' && game->Board.Slot[xSlot][ySlot - 1].Card->Color != lastPlayed->Card->Color)
-	{
-		slotsAffected[3] = &game->Board.Slot[xSlot][ySlot - 1];
-		subtr[3] = lastPlayed->LeftValue - slotsAffected[3]->RightValue;
-		slotsPossible[3] = 1;
-	}
-
-	//Turn Cards
 	for(i = 0; i < 4; i++)
 	{
-		if(slotsPossible[i] == 1 && subtr[i] > 0)
+		if(affectedSlots.AffSlot[i].SameWallTrigger == 'Y')
+			affectedSlots.SameWallEvent = 'Y';
+	}
+
+	if(isCombo == 'N') 
+	{
+		for(i = 0; i < 4; i++)
 		{
-			slotsAffected[i]->Card->Color = lastPlayed->Card->Color;
+			if(game->Rules.Plus == 'Y')
+			{
+				for(j = i + 1; j < 4; j++)
+				{
+					if(affectedSlots.AffSlot[i].Valid == 'Y' && affectedSlots.AffSlot[j].Valid == 'Y'
+					&&  affectedSlots.AffSlot[i].Sum == affectedSlots.AffSlot[j].Sum)
+					{
+						if(affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
+							affectedSlots.AffSlot[i].Turned = 'Y';
+
+						if(affectedSlots.AffSlot[j].Slot->Card->Color != lastPlayedColor)
+							affectedSlots.AffSlot[j].Turned = 'Y';
+
+						comboEvent = 'Y';
+					}
+				}
+			}
+
+			if(game->Rules.Same == 'Y')
+			{
+				for(j = i + 1; j < 4; j++)
+				{
+					if(affectedSlots.AffSlot[i].Valid == 'Y' && affectedSlots.AffSlot[j].Valid == 'Y'
+					&&  affectedSlots.AffSlot[i].SubtractionCardValue == 0
+					&&  affectedSlots.AffSlot[j].SubtractionCardValue == 0)
+					{
+						if(affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
+							affectedSlots.AffSlot[i].Turned = 'Y';
+
+						if(affectedSlots.AffSlot[j].Slot->Card->Color != lastPlayedColor)
+							affectedSlots.AffSlot[j].Turned = 'Y';
+
+						comboEvent = 'Y';
+					}
+				}
+			}
+
+			printf("gmRl samwl: %c smwe %c", game->Rules.SameWall, affectedSlots.SameWallEvent);
+			if(game->Rules.SameWall == 'Y' && affectedSlots.SameWallEvent == 'Y')
+			{
+				printf("smwe i: %i subtract: %i", i, affectedSlots.AffSlot[i].SubtractionCardValue);
+				if(affectedSlots.AffSlot[i].Valid == 'Y' && affectedSlots.AffSlot[i].SubtractionCardValue == 0)
+				{
+					if(affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
+						affectedSlots.AffSlot[i].Turned = 'Y';
+
+					comboEvent = 'Y';
+				}
+			}
 		}
-	}*/
+	}
+
+	for(i = 0; i < 4; i++)
+	{
+		if(affectedSlots.AffSlot[i].Valid == 'Y' 
+		&& affectedSlots.AffSlot[i].SubtractionFieldValue > 0 
+		&& affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
+			   affectedSlots.AffSlot[i].Turned = 'Y';
+
+		if(affectedSlots.AffSlot[i].Turned == 'Y')
+			affectedSlots.AffSlot[i].Slot->Card->Color = lastPlayedColor;
+	}
+
+	/*if(comboEvent == 'Y')
+		for(i = 0; i < 4; i++)
+			if(affectedSlots.AffSlot[i].Turned == 'Y')
+			{
+
+			}*/
 }
 
 void SetCardPlay (Game *game, int cardNo, int slotNo)
@@ -896,7 +910,7 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 		currentSlot->LeftValue = currentSlot->Card->LeftValue - 1;	
 	}
 
-	EvaluateCardPlay(game, slotNo);
+	EvaluateCardPlay(game, slotNo, 'N');
 
 	game->Round++;
 	
@@ -908,7 +922,7 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 
 void StartGame(Game *game)
 {
-	int whoStart, cardNo, slotNo;
+	int whoStart, cardNo, slotNo, prevRound;
 
 	printf("\nStarting the Game\n");
 
@@ -923,6 +937,7 @@ void StartGame(Game *game)
 
 	while(game->Round < 9)
 	{
+		prevRound = game->Round;
 		PrintGame(*game);
 
 		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
@@ -931,7 +946,45 @@ void StartGame(Game *game)
 		
 		SetCardPlay(game, cardNo, slotNo);
 	}
-	PrintGame(*game);
+
+	if(prevRound != game->Round)
+		PrintGame(*game);
+}
+
+void Test(Game *game)
+{
+	int i;
+	long int BlueCards[] = {10469, 69104, 101033, 410210, 85106};
+	long int RedCards[] = {26910, 311010, 96102, 10864, 51039};
+
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+	int arr[][2] = 
+	{
+		{2, 8},
+		{5, 9},
+		{1, 6},
+		{1, 5},
+		{3, 1},
+		{3, 4},
+		{4, 2},
+		{2, 3},
+		{5, 7}
+	};
+
+	game->PlayerTurn = &game->Player[0];
+	
+	for(i = 0; i < 9; i++)
+	{
+		SetCardPlay(game, arr[i][0], arr[i][1]);
+		PrintGame(*game);
+	}
+	
+
 }
 
 void main(void)
