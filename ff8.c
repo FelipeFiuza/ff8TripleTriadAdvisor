@@ -122,7 +122,8 @@ typedef struct Rules
 	char 	Same,
 			Plus,
 		 	SameWall,
-		 	Elemental;
+		 	Elemental,
+			SuddenDeath;
 } Rules;
 
 typedef struct Game
@@ -300,6 +301,10 @@ void SetRules (Rules *rules)
 	while( getchar() != '\n' );
 	printf("\nEnable *Elemental* rule? (Y/N)");
 	scanf("%c", &rules->Elemental);
+
+	while( getchar() != '\n' );
+	printf("\nEnable *SuddenDeath* rule? (Y/N)");
+	scanf("%c", &rules->SuddenDeath);
 
 	while( getchar() != '\n' );
 	printf("\nEnable *Plus* rule? (Y/N)");
@@ -676,7 +681,7 @@ Game initGame(void)
 		{
 			Game.Board.Slot[x][y].Element = 'N';
 			Game.Board.Slot[x][y].Occupied = 'N';
-			Game.Board.Slot[x][y].Id = 3 * x + y;
+			Game.Board.Slot[x][y].Id = 3 * x + y + 1;
 		}
 
 	Game.Player[0].Color = 'B';
@@ -865,12 +870,24 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 			affectedSlots.AffSlot[i].Slot->Card->Color = lastPlayedColor;
 	}
 
-	/*if(comboEvent == 'Y')
+	if(comboEvent == 'Y')
+	{
 		for(i = 0; i < 4; i++)
-			if(affectedSlots.AffSlot[i].Turned == 'Y')
+		{
+			/*https://youtu.be/264wi-_Yxmw?t=64 seems strange but had to add this comparison with card value to comply to the video*/
+			if(affectedSlots.AffSlot[i].Valid == 'Y' 
+			&& affectedSlots.AffSlot[i].SubtractionCardValue > 0 
+			&& affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
 			{
+				affectedSlots.AffSlot[i].Turned = 'Y';
+				affectedSlots.AffSlot[i].Slot->Card->Color = lastPlayedColor;
+				printf("\nSpecial move");
+			}
 
-			}*/
+			if(affectedSlots.AffSlot[i].Turned == 'Y')
+				EvaluateCardPlay(game, affectedSlots.AffSlot[i].Slot->Id, 'Y');
+		}
+	}
 }
 
 void SetCardPlay (Game *game, int cardNo, int slotNo)
@@ -951,48 +968,187 @@ void StartGame(Game *game)
 		PrintGame(*game);
 }
 
+void SuddenDeath(Game *game)
+{
+	int x, y, cardBufferCount[] = {0, 0}, playerIdx, otherPlayerIdx;
+	Card cardBuffer[2][5];
+
+	for(x = 0; x < 3; x++)
+		for(y = 0; y < 3; y++)
+		{
+			game->Board.Slot[x][y].Occupied = 'N';
+		}
+
+	game->Round = 0;
+
+	if(game->PlayerTurn->Color == game->Player[1].Color)
+		game->PlayerTurn = &game->Player[0];
+	else
+		game->PlayerTurn = &game->Player[1];
+
+	printf("\n%ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c ", game->Player[1].CardsHand[0].Id, game->Player[1].CardsHand[0].Color, 
+																					   game->Player[1].CardsHand[1].Id, game->Player[1].CardsHand[1].Color, 
+																					   game->Player[1].CardsHand[2].Id, game->Player[1].CardsHand[2].Color,  
+																					   game->Player[1].CardsHand[3].Id, game->Player[1].CardsHand[3].Color, 
+																					   game->Player[1].CardsHand[4].Id, game->Player[1].CardsHand[4].Color,
+																					   game->Player[0].CardsHand[0].Id, game->Player[0].CardsHand[0].Color,
+																					   game->Player[0].CardsHand[1].Id, game->Player[0].CardsHand[1].Color, 
+																					   game->Player[0].CardsHand[2].Id, game->Player[0].CardsHand[2].Color, 
+																					   game->Player[0].CardsHand[3].Id, game->Player[0].CardsHand[3].Color, 
+																					   game->Player[0].CardsHand[4].Id, game->Player[0].CardsHand[4].Color);
+	
+	for(playerIdx = 1; playerIdx >= 0; playerIdx--)
+	{
+		for(x = 0; x < 5; x++)
+		{
+			if(game->Player[playerIdx].CardsHand[x].Color == game->Player[playerIdx].Color)
+			{
+				cardBuffer[playerIdx][cardBufferCount[playerIdx]] = game->Player[playerIdx].CardsHand[x];
+				cardBuffer[playerIdx][cardBufferCount[playerIdx]];
+				cardBufferCount[playerIdx]++;
+			}
+			else
+			{
+				if(playerIdx == 1)
+					otherPlayerIdx = 0;
+				else
+					otherPlayerIdx = 1;
+
+				cardBuffer[otherPlayerIdx][cardBufferCount[otherPlayerIdx]] = game->Player[playerIdx].CardsHand[x];
+				cardBufferCount[otherPlayerIdx]++;
+			}
+			printf("\n%ld %ld %ld %ld %ld %ld %ld %ld %ld %ld", cardBuffer[0][0].Id, cardBuffer[0][1].Id, cardBuffer[0][2].Id, cardBuffer[0][3].Id, cardBuffer[0][4].Id, cardBuffer[1][0].Id, cardBuffer[1][1].Id, cardBuffer[1][2].Id, cardBuffer[1][3].Id, cardBuffer[1][4].Id);
+		}
+	}
+
+	for(x = 0; x < 5; x++)
+	{
+		game->Player[0].CardsHand[x] = cardBuffer[0][x];
+		game->Player[0].CardsAvailable[x] = 'Y';
+		game->Player[1].CardsHand[x] = cardBuffer[1][x];
+		game->Player[1].CardsAvailable[x] = 'Y';
+
+	}
+
+
+
+	PrintGame(*game);
+
+	
+
+	/*
+	long int BlueCards[] = {4856,10177,31021,69104,1883};
+	long int RedCards[] = {4489,9628,311010,67610,26910};
+
+	//blue 4489,311010,67610,10177,69104
+	//red 9628,26910,4856,31021,1883
+	10177, 10177, 69104, 69104
+	*/
+}
+
 void Test(Game *game)
 {
 	int i;
-	long int BlueCards[] = {10469, 69104, 101033, 410210, 85106};
-	long int RedCards[] = {26910, 311010, 96102, 10864, 51039};
+/*
+	game->Board.Slot[1][0].Element = 'E';
+	game->Board.Slot[1][2].Element = 'L';
+
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	
+	long int BlueCards[] = {8358, 6565, 5325, 6627, 9628};
+	long int RedCards[] = {4489, 72710, 7543, 7581, 8844};
+
+	int arr[][2] = 
+	{
+		{1, 9},
+		{4, 5},
+		{4, 6},
+		{1, 3},
+		{2, 2},
+		{3, 7},
+		{5, 8},
+		{2, 4},
+		{3, 1}
+	};
+
+	game->PlayerTurn = &game->Player[0];
+*/
+/*
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+
+	long int BlueCards[] = {4856,10177,31021,69104,1883};
+	long int RedCards[] = {4489,9628,311010,67610,26910};
+
+	int arr[][2] = 
+	{
+		{1, 9},
+		{4, 5},
+		{4, 6},
+		{1, 3},
+		{2, 2},
+		{3, 7},
+		{5, 8},
+		{2, 4},
+		{3, 1}
+	};
+
+	game->PlayerTurn = &game->Player[0];
+*/
+	game->Board.Slot[0][0].Element = 'H';
+	game->Board.Slot[0][2].Element = 'W';
+	game->Board.Slot[1][0].Element = 'W';
+	game->Board.Slot[2][1].Element = 'I';
+
 
 	game->Rules.Plus = 'Y';
 	game->Rules.Same = 'Y';
 	game->Rules.SameWall = 'Y';
 
-	LoadCardsAuto(&game->Player[0], BlueCards);
-	LoadCardsAuto(&game->Player[1], RedCards);
+	long int BlueCards[] = {4856,10177,31021,69104,1883};
+	long int RedCards[] = {4489,9628,311010,67610,26910};
+
+	//red 9628,26910,4856,31021,1883
+	//blue 4489,311010,67610,10177,69104
+
 	int arr[][2] = 
 	{
-		{2, 8},
-		{5, 9},
-		{1, 6},
-		{1, 5},
-		{3, 1},
+		{5, 1},
+		{2, 5},
 		{3, 4},
-		{4, 2},
+		{1, 7},
+		{1, 8},
+		{3, 2},
 		{2, 3},
-		{5, 7}
+		{4, 9},
+		{4, 6}
 	};
 
 	game->PlayerTurn = &game->Player[0];
-	
+
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);	
+
 	for(i = 0; i < 9; i++)
 	{
 		SetCardPlay(game, arr[i][0], arr[i][1]);
 		PrintGame(*game);
 	}
-	
 
+	SuddenDeath(game);
 }
 
 void main(void)
 {
 	Game Game = initGame();
-	int chosenOption;
+	int chosenOption = 0;
 
 	printf("\n\nFinal Fantasy 8 Triple Triad\n");
+
+	printf("\n1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n");
 	
 	while (chosenOption != 6) 
 	{
@@ -1002,7 +1158,7 @@ void main(void)
 		switch(chosenOption)
 		{
 			case 0:
-				printf("1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n");
+				printf("\n1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n");
 				break;
 
 			case 1:
