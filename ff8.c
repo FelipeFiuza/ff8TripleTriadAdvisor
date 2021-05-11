@@ -4,37 +4,36 @@
 #include <ctype.h>
 /*
 
-The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1)
+#Final Fantasy 8 Triple Triad Advisor
 
+
+##Introduction
+The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and than develop a function to return which is the best play in a given scenario.
 It consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
 
-https://www.youtube.com/watch?v=LBYtH97AvyA
+A simple game: https://www.youtube.com/watch?v=fXADMoL8wbU
 
-https://www.onlinegdb.com/online_c_compiler
+A complete explanation about the rules: https://www.youtube.com/watch?v=LBYtH97AvyA
 
-https://www.youtube.com/watch?v=fXADMoL8wbU simple game
+A C online compiler if you want to try by yourself: https://www.onlinegdb.com/online_c_compiler
 
-The cards are rectangular and have 4 numeric values, each value associated with each side.
-
-Wins the game the player who ends up with most cards. There are several ways to capture the adversary card's.
-
- and develop a function to return which is the best play in a given scenario.
-
+The cards are rectangular and have 4 numeric values, each value associated with each side. When a card is placed on a slot of the board, the numbers representing the adjacent sides of adjacents cards are used in a series of calculation, which depends on wich rules are turned on.
+From these calculations the game determines which adversary card's you capture. Wins the game the player who ends up with most cards. There are several ways to capture the adversary card's.
 Although simple in the beginning, this game add some complexity later on, and became really challenging. 
 
-- Rotina pra imprimir as cartas da mão dos jogadores - ok
-- Testar rotina de carregar cartas - ok
-- Fazer menu e configurar opções - ok
-- Refatorar a LoadCardsAuto para receber uma array - ok
-- Refatorar a funcao LoadCards para usar a LoadCardsAuto - ok
-- Refatorar prints para receber passagem por valor - ok
-- Criar funcao de "fazer jogada" - ok
-- Ajustar EvaluateCardPlay para contemplar as regras Same, Plus, SameWall
-- Funcao de calcular placar - ok
-- Funcao print Game envolvendo printBoard, printCardHand e placar - ok
-- Substituir menções a eixos X e Y por linhas e colunas
-- Passagem de slot por ID
 
+##To-Do
+- Modify variables used to iterate over the board slots to stop relate to axis x and y, and relate to lines and columns
+- Pass Slots by ID instead of numbers literals
+- Function to iterate all possible plays in a given scenario
+
+
+##Issues
+###-Does "Same" event enable use de card values insted field values?
+On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently the Phoenix card captured Krysta Card using its '2' card's right value instead of the '2 - 1 = 1' value derived of the elemental mismatch. Further investigation needed.
+
+
+##Calculation of possible scenarios
     Round	Cards On Hand	Spots Available	Possible Plays	Aggregated Possibilities	Possible Scenarios
         1	            5	              9	            45	                      45	        5225472000
         2	            5	              8	            40	                    1800	         116121600
@@ -45,19 +44,6 @@ Although simple in the beginning, this game add some complexity later on, and be
         7	            2	              3	             6	              1306368000	                24
         8	            2	              2	             4	              5225472000	                 4
         9	            1	              1	             1	              5225472000	                 1
-
-	
-	Elements
-	
-		N = Neutral
-		L = Lightning
-		E = Earth
-		I = Ice
-		W = Wind
-		P = Poison
-		F = Fire
-		A = Water
-		H = Holy
 */
 
 //strings to change the color of the text
@@ -77,7 +63,7 @@ typedef struct Card
 	    LeftValue;
 	char Element,
 	     Color;
-
+	int SuddenDeathOrder;
 } Card;
 
 typedef struct Slot
@@ -132,6 +118,7 @@ typedef struct Game
     Score Score;
     Rules Rules;
 	Player *PlayerTurn;
+	char SuddenDeathEvent;
     int Round;
 
 } Game;
@@ -356,13 +343,19 @@ void ShowAllCards()
 
 void LoadCardsAuto(Player *player, long int cards[])
 {
-	int i;
+	int i, SuddenDeathOrderOffset;
+
+	if(player->Color == 'B')
+		SuddenDeathOrderOffset = 5;
+	else
+		SuddenDeathOrderOffset = 0;
 
 	for(i = 0; i < 5; i++)
     {
         player->CardsHand[i] = RetrieveCard(cards[i]);
 		player->CardsHand[i].Color = player->Color;
 		player->CardsAvailable[i] = 'Y';
+		player->CardsHand[i].SuddenDeathOrder = i + SuddenDeathOrderOffset;
     }
 
 }
@@ -514,15 +507,27 @@ void SetElementalBoard (Board *board)
 	printf("\nSetting Elements of the board's slots\n");
 	printf("\nElements\n\nN = Neutral\nL = Lightning\nE = Earth\nI = Ice\nW = Wind\nP = Poison\nF = Fire\nA = Water\nH = Holy\n");
 
-	int x, y;
-	for(x = 0; x < 3; x++)
-		for(y = 0; y < 3; y++)
+	int lin, col, elementNotValid = 1;
+	for(lin = 0; lin < 3; lin++)
+		for(col = 0; col < 3; col++)
 		{
-			while( getchar() != '\n' );
-			printf("\nSet the element of the slot %i (%i, %i): ", (3 * x + y+1), x, y);
-			scanf("%c", &board->Slot[x][y].Element);
-		}
+			while(elementNotValid == 1)
+			{
+				while( getchar() != '\n' );
+				printf("\nSet the element of the slot %i (%i, %i): ", (3 * lin + col+1), lin, col);
+				scanf("%c", &board->Slot[lin][col].Element);
+				board->Slot[lin][col].Element = toupper(board->Slot[lin][col].Element);
 
+				if(board->Slot[lin][col].Element != 'N' && board->Slot[lin][col].Element != 'L' && board->Slot[lin][col].Element != 'E' &&
+				   board->Slot[lin][col].Element != 'I' && board->Slot[lin][col].Element != 'W' && board->Slot[lin][col].Element != 'P' &&
+				   board->Slot[lin][col].Element != 'F' && board->Slot[lin][col].Element != 'A' && board->Slot[lin][col].Element != 'H')
+					printf("\nInvalid element. Pick an element from the list below: \n\nElements\n\nN = Neutral\nL = Lightning\nE = Earth\nI = Ice\nW = Wind\nP = Poison\nF = Fire\nA = Water\nH = Holy\n");
+				else
+					elementNotValid = 0;
+			}
+			elementNotValid = 1;
+		}
+	
 	PrintBoard(*board);
 }
 
@@ -643,6 +648,7 @@ void PrintScore(Game game)
 
 void PrintGame(Game game)
 {
+	printf("\n\n\n\n Round: %i #########################################################################################\n", game.Round);
 	PrintCardHand(game.Player[0]);
 	PrintCardHand(game.Player[1]);
 	PrintBoard(game.Board);
@@ -652,12 +658,12 @@ void PrintGame(Game game)
 void ResetGame(Game *game)
 {
 	int x, y;
+	game->SuddenDeathEvent = 'N';
+	game->Round = 0;
 
 	for(x = 0; x < 3; x++)
 		for(y = 0; y < 3; y++)
-		{
 			game->Board.Slot[x][y].Occupied = 'N';
-		}
 
 	for(x = 0; x < 5; x++)
 	{
@@ -674,6 +680,12 @@ Game initGame(void)
 	Game Game;
 
 	Game.Round = 0;
+	Game.SuddenDeathEvent = 'N';
+	Game.Rules.Elemental = 'N';
+	Game.Rules.Plus = 'N';
+	Game.Rules.Same = 'N';
+	Game.Rules.SameWall = 'N';
+	Game.Rules.SuddenDeath = 'N';
 
 	for(x = 0; x < 3; x++)
 		for(y = 0; y < 3; y++)
@@ -780,7 +792,6 @@ AffectedSlot AssignAffectedSlot(Game *game, int slotNo, int xOffset, int yOffset
 		affectedSlot.SubtractionCardValue = *lastPlayedCardValue - *affectedSlotCardValue;
 		affectedSlot.Sum = *lastPlayedCardValue + *affectedSlotCardValue;
 		affectedSlot.SameWallTrigger = 'N';
-		printf("x=%i, y=%i, aff=%i, lp=%i", xOffset, yOffset, *affectedSlotFieldValue, *lastPlayedFieldValue);
 
 		return affectedSlot;
 	}
@@ -845,10 +856,8 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 				}
 			}
 
-			printf("gmRl samwl: %c smwe %c", game->Rules.SameWall, affectedSlots.SameWallEvent);
 			if(game->Rules.SameWall == 'Y' && affectedSlots.SameWallEvent == 'Y')
 			{
-				printf("smwe i: %i subtract: %i", i, affectedSlots.AffSlot[i].SubtractionCardValue);
 				if(affectedSlots.AffSlot[i].Valid == 'Y' && affectedSlots.AffSlot[i].SubtractionCardValue == 0)
 				{
 					if(affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
@@ -886,10 +895,7 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 			}
 
 			if(affectedSlots.AffSlot[i].Turned == 'Y')
-			{
-				printf("\nSlot: %i    -   Special move: %i\n",slotNo, affectedSlots.AffSlot[i].Slot->Id);
 				EvaluateCardPlay(game, affectedSlots.AffSlot[i].Slot->Id, 'Y');
-			}
 		}
 	}
 }
@@ -945,7 +951,7 @@ void StartGame(Game *game)
 {
 	int whoStart, cardNo, slotNo, prevRound;
 
-	if(game->Round == 0)
+	if(game->Round == 0 && game->SuddenDeathEvent == 'N')
 	{
 		printf("\nStarting the Game\n");
 
@@ -958,10 +964,6 @@ void StartGame(Game *game)
 		else
 			game->PlayerTurn = &game->Player[1];
 	} 
-	else if(game->Round == 10) //In case of SuddenDeath, round is set to 10 to differentiate from regular game start
-	{
-		game->Round = 0;		
-	}
 
 	while(game->Round < 9)
 	{
@@ -971,8 +973,11 @@ void StartGame(Game *game)
 		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
 		while( getchar() != '\n' );
 		scanf("%i %i", &cardNo, &slotNo);
-		
-		SetCardPlay(game, cardNo, slotNo);
+
+		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)		
+			SetCardPlay(game, cardNo, slotNo);
+		else
+			printf("\nPlease enter a valid Card Number and Slot Number.\n");
 	}
 
 	if(prevRound != game->Round)
@@ -988,9 +993,7 @@ void SuddenDeath(Game *game)
 		for(y = 0; y < 3; y++)
 			game->Board.Slot[x][y].Occupied = 'N';
 
-	game->Round = 10;
-
-	printf("\n%ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c ", game->Player[1].CardsHand[0].Id, game->Player[1].CardsHand[0].Color, 
+	printf("\naa%ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c ", game->Player[1].CardsHand[0].Id, game->Player[1].CardsHand[0].Color, 
 																					   game->Player[1].CardsHand[1].Id, game->Player[1].CardsHand[1].Color, 
 																					   game->Player[1].CardsHand[2].Id, game->Player[1].CardsHand[2].Color,  
 																					   game->Player[1].CardsHand[3].Id, game->Player[1].CardsHand[3].Color, 
@@ -1008,7 +1011,6 @@ void SuddenDeath(Game *game)
 			if(game->Player[playerIdx].CardsHand[x].Color == game->Player[playerIdx].Color)
 			{
 				cardBuffer[playerIdx][cardBufferCount[playerIdx]] = game->Player[playerIdx].CardsHand[x];
-				cardBuffer[playerIdx][cardBufferCount[playerIdx]];
 				cardBufferCount[playerIdx]++;
 			}
 			else
@@ -1021,7 +1023,7 @@ void SuddenDeath(Game *game)
 				cardBuffer[otherPlayerIdx][cardBufferCount[otherPlayerIdx]] = game->Player[playerIdx].CardsHand[x];
 				cardBufferCount[otherPlayerIdx]++;
 			}
-			printf("\n%ld %ld %ld %ld %ld %ld %ld %ld %ld %ld", cardBuffer[0][0].Id, cardBuffer[0][1].Id, cardBuffer[0][2].Id, cardBuffer[0][3].Id, cardBuffer[0][4].Id, cardBuffer[1][0].Id, cardBuffer[1][1].Id, cardBuffer[1][2].Id, cardBuffer[1][3].Id, cardBuffer[1][4].Id);
+			printf("\nbb%ld %ld %ld %ld %ld %ld %ld %ld %ld %ld", cardBuffer[0][0].Id, cardBuffer[0][1].Id, cardBuffer[0][2].Id, cardBuffer[0][3].Id, cardBuffer[0][4].Id, cardBuffer[1][0].Id, cardBuffer[1][1].Id, cardBuffer[1][2].Id, cardBuffer[1][3].Id, cardBuffer[1][4].Id);
 		}
 	}
 
@@ -1032,10 +1034,64 @@ void SuddenDeath(Game *game)
 		game->Player[1].CardsHand[x] = cardBuffer[1][x];
 		game->Player[1].CardsAvailable[x] = 'Y';
 	}
+
+	game->SuddenDeathEvent = 'Y';
+	game->Round = 0;
 }
 
-void StartGameAuto(Game *game, Player *startPlayer, int *plays, int playsCount)
+void SuddenDeathTest(Game *game)
 {
+	int x, y, cardBufferCount[] = {0, 0}, playerIdx, otherPlayerIdx;
+	Card cardBuffer[2][5];
+
+	for(x = 0; x < 3; x++)
+		for(y = 0; y < 3; y++)
+			game->Board.Slot[x][y].Occupied = 'N';			
+
+	for(y = 0; y < 10; y++)
+	{
+		for(playerIdx = 1; playerIdx >= 0; playerIdx--)
+		{
+			for(x = 0; x < 5; x++)
+			{
+				if(game->Player[playerIdx].CardsHand[x].SuddenDeathOrder == y)
+				{
+					if(game->Player[playerIdx].CardsHand[x].Color == game->Player[playerIdx].Color)
+					{
+						cardBuffer[playerIdx][cardBufferCount[playerIdx]] = game->Player[playerIdx].CardsHand[x];
+
+						cardBufferCount[playerIdx]++;
+					}
+					else
+					{
+						if(playerIdx == 1)
+							otherPlayerIdx = 0;
+						else
+							otherPlayerIdx = 1;
+
+						cardBuffer[otherPlayerIdx][cardBufferCount[otherPlayerIdx]] = game->Player[playerIdx].CardsHand[x];
+						cardBufferCount[otherPlayerIdx]++;
+					}
+				}
+			}
+		}
+	}
+
+	for(x = 0; x < 5; x++)
+	{
+		game->Player[0].CardsHand[x] = cardBuffer[0][x];
+		game->Player[0].CardsAvailable[x] = 'Y';
+		game->Player[1].CardsHand[x] = cardBuffer[1][x];
+		game->Player[1].CardsAvailable[x] = 'Y';
+	}
+
+	game->SuddenDeathEvent = 'Y';
+	game->Round = 0;
+}
+
+void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCount, char *boardSetupArray, int boardSetupCount)
+{
+	int col, lin, boardSetupIdx = 0;
 	char endGame = 'N';
 	game->PlayerTurn = startPlayer;
 
@@ -1043,17 +1099,31 @@ void StartGameAuto(Game *game, Player *startPlayer, int *plays, int playsCount)
 	{
 		while(game->Round < 9 && playsCount > 0)
 		{
-			printf("plays[0]: %i, plays[1]: %i", plays[0], plays[1]);
-			SetCardPlay(game, plays[0], plays[1]);
+			SetCardPlay(game, playsArray[0], playsArray[1]);
 			PrintGame(*game);
-			plays += 2;
+			playsArray += 2;
 			playsCount--;
 		}
 
 		if(game->Round == 9 && game->Rules.SuddenDeath == 'Y' && CalcScorePlayer0(*game) == 5)
 		{
-			SuddenDeath(game);
-			game->Round = 0;
+			if(game->Rules.Elemental == 'Y' && boardSetupIdx < boardSetupCount)
+			{
+				SuddenDeathTest(game);
+
+				for(lin = 0; lin < 3; lin++)
+					for(col = 0; col < 3; col++)
+						game->Board.Slot[lin][col].Element = boardSetupArray[boardSetupIdx * 9 + (lin * 3) + col];
+				
+				boardSetupIdx++;
+			}
+			else if(game->Rules.Elemental == 'Y' && boardSetupIdx >= boardSetupCount)
+			{
+				SuddenDeathTest(game);
+				SetElementalBoard(&game->Board);
+			}
+
+			SuddenDeathTest(game);
 		}
 		else if(game->Round == 9)
 			ResetGame(game);
@@ -1117,18 +1187,19 @@ void Test(Game *game)
 	game->Board.Slot[1][0].Element = 'W';
 	game->Board.Slot[2][1].Element = 'I';
 
+	game->Rules.Elemental = 'Y';
 	game->Rules.Plus = 'Y';
 	game->Rules.Same = 'Y';
 	game->Rules.SameWall = 'Y';
 	game->Rules.SuddenDeath = 'Y';
 
-	long int BlueCards[] = {4856,10177,31021,69104,1883}; //blue 4489,311010,67610,10177,69104
-	long int RedCards[] = {4489,9628,311010,67610,26910}; //red 9628,26910,4856,31021,1883
-
+	long int BlueCards[] = {4856,10177,31021,69104,1883}; //blue 4489,311010,67610,10177,69104 //blue 4489, 9628, 311010, 67610, 69104
+	long int RedCards[] = {4489,9628,311010,67610,26910}; //red 9628,26910,4856,31021,1883 //red 26910, 4856, 10177, 31021, 1883
+	
 	LoadCardsAuto(&game->Player[0], BlueCards);
 	LoadCardsAuto(&game->Player[1], RedCards);
 
-	int arr[][2] = 
+	int playsArray[][2] = 
 	{
 		{5, 1},
 		{2, 5},
@@ -1148,18 +1219,26 @@ void Test(Game *game)
 		{4 ,7},
 		{3 ,8},
 		{3 ,9},//
-		{1, 9},
-		{4, 3},
-		{2, 6},
+		{2, 9},
+		{5, 3},
+		{1, 6},
 		{1, 2},
 		{3, 1},
-		{3, 8},
+		{4, 8},
 		{4, 7},
-		{5, 5},
+		{3, 5},
 		{5, 4}
 	};
 
-	StartGameAuto(game, &game->Player[0], *arr, 27);
+	char boardSetupArray[][9] = {
+		{"PNIINNNNN"},
+		{"NINNPNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[0], *playsArray, 27, *boardSetupArray, 2);
+
+	//85106,71017,4556,5135,6263 //5376,1415,85106,4556,6263 // 5668,1415,85106,71017,4556
+	//8962,5376,5668,7513,1415   //8962,5668,7513,71017,5135 // 8962,5376,7513,5135,6263 
 }
 
 void main(void)
@@ -1168,7 +1247,7 @@ void main(void)
 	int chosenOption = 0;
 	char endGame = 'N';
 
-	printf("\n\nFinal Fantasy 8 Triple Triad\n");
+	printf("\n#############################   Final Fantasy 8 Triple Triad Advisor   #############################\n\n\n");
 
 	printf("\n1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n");
 
@@ -1209,7 +1288,14 @@ void main(void)
 					StartGame(&Game);
 
 					if(Game.Rules.SuddenDeath == 'Y' && CalcScorePlayer0(Game) == 5)
-						SuddenDeath(&Game);
+					{
+						SuddenDeathTest(&Game);
+
+						if(Game.Rules.Elemental == 'Y')
+							SetElementalBoard(&Game.Board);
+
+						StartGame(&Game);
+					}
 					else
 					{
 						ResetGame(&Game);
@@ -1223,5 +1309,6 @@ void main(void)
 				Test(&Game);
 				break;
 		}
+		printf("\n###################################################################################################\n\n\n");
 	}
 }
