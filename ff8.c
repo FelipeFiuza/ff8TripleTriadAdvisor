@@ -8,7 +8,7 @@
 
 
 ##Introduction
-The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and than develop a function to return which is the best play in a given scenario.
+The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and then develop a function to return which is the best play in a given scenario.
 It consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
 
 A simple game: https://www.youtube.com/watch?v=fXADMoL8wbU
@@ -1097,8 +1097,22 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 
 	while(playsCount > 0)
 	{
+		if(game->Rules.Elemental == 'Y' && boardSetupIdx < boardSetupCount)
+		{
+			for(lin = 0; lin < 3; lin++)
+				for(col = 0; col < 3; col++)
+					game->Board.Slot[lin][col].Element = boardSetupArray[boardSetupIdx * 9 + (lin * 3) + col];
+			
+			boardSetupIdx++;
+		} 
+		else 
+		{
+			SetElementalBoard(&game->Board);
+		}
+
 		while(game->Round < 9 && playsCount > 0)
 		{
+			printf("\n%s Player sets card %i on slot %i and boardSetupIdx: %i.\n", game->PlayerTurn->Name, playsArray[0], playsArray[1], boardSetupIdx);
 			SetCardPlay(game, playsArray[0], playsArray[1]);
 			PrintGame(*game);
 			playsArray += 2;
@@ -1106,86 +1120,55 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 		}
 
 		if(game->Round == 9 && game->Rules.SuddenDeath == 'Y' && CalcScorePlayer0(*game) == 5)
-		{
-			if(game->Rules.Elemental == 'Y' && boardSetupIdx < boardSetupCount)
-			{
-				SuddenDeathTest(game);
-
-				for(lin = 0; lin < 3; lin++)
-					for(col = 0; col < 3; col++)
-						game->Board.Slot[lin][col].Element = boardSetupArray[boardSetupIdx * 9 + (lin * 3) + col];
-				
-				boardSetupIdx++;
-			}
-			else if(game->Rules.Elemental == 'Y' && boardSetupIdx >= boardSetupCount)
-			{
-				SuddenDeathTest(game);
-				SetElementalBoard(&game->Board);
-			}
-
 			SuddenDeathTest(game);
-		}
+		
 		else if(game->Round == 9)
 			ResetGame(game);
 	}
 }
 
-void Test(Game *game)
+void ExSameWallElementalPenalty(Game *game)
 {
-	int i;
-/*
-	game->Board.Slot[1][0].Element = 'E';
-	game->Board.Slot[1][2].Element = 'L';
+	//https://youtu.be/264wi-_Yxmw?t=16
+	ResetGame(game);
 
+	game->Rules.Elemental = 'Y';
 	game->Rules.Plus = 'Y';
 	game->Rules.Same = 'Y';
 	game->Rules.SameWall = 'Y';
-	
-	long int BlueCards[] = {8358, 6565, 5325, 6627, 9628};
-	long int RedCards[] = {4489, 72710, 7543, 7581, 8844};
+	game->Rules.SuddenDeath = 'Y';
 
-	int arr[][2] = 
+	long int BlueCards[] = {8358,6565,5325,6627,9628};
+	long int RedCards[] = {4489,72710,7543,7581,1451};
+
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
 	{
-		{1, 9},
-		{4, 5},
-		{4, 6},
-		{1, 3},
-		{2, 2},
-		{3, 7},
-		{5, 8},
-		{2, 4},
-		{3, 1}
+		{1,9},
+		{4,5},
+		{4,6},
+		{1,3},
+		{2,2},
+		{3,7},
+		{5,8},
+		{2,4},
+		{3,1}
 	};
 
-	game->PlayerTurn = &game->Player[0];
-*/
-/*
-	game->Rules.Plus = 'Y';
-	game->Rules.Same = 'Y';
-	game->Rules.SameWall = 'Y';
-
-	long int BlueCards[] = {4856,10177,31021,69104,1883};
-	long int RedCards[] = {4489,9628,311010,67610,26910};
-
-	int arr[][2] = 
+	char boardSetupArray[][9] = 
 	{
-		{1, 9},
-		{4, 5},
-		{4, 6},
-		{1, 3},
-		{2, 2},
-		{3, 7},
-		{5, 8},
-		{2, 4},
-		{3, 1}
+		{"NNNENLNNN"}
 	};
 
-	game->PlayerTurn = &game->Player[0];
-*/
-	game->Board.Slot[0][0].Element = 'H';
-	game->Board.Slot[0][2].Element = 'W';
-	game->Board.Slot[1][0].Element = 'W';
-	game->Board.Slot[2][1].Element = 'I';
+	StartGameAuto(game, &game->Player[0], *playsArray, 9, *boardSetupArray, 1);
+}
+
+void Ex3SuddenDeathInaRow(Game *game)
+{
+	//https://youtu.be/264wi-_Yxmw?t=91
+	ResetGame(game);
 
 	game->Rules.Elemental = 'Y';
 	game->Rules.Plus = 'Y';
@@ -1230,15 +1213,120 @@ void Test(Game *game)
 		{5, 4}
 	};
 
-	char boardSetupArray[][9] = {
+	char boardSetupArray[][9] = 
+	{
+		{"HNWWNNNIN"},
 		{"PNIINNNNN"},
 		{"NINNPNNNN"}
 	};
 
-	StartGameAuto(game, &game->Player[0], *playsArray, 27, *boardSetupArray, 2);
+	StartGameAuto(game, &game->Player[0], *playsArray, 27, *boardSetupArray, 3);
+}
 
-	//85106,71017,4556,5135,6263 //5376,1415,85106,4556,6263 // 5668,1415,85106,71017,4556
-	//8962,5376,5668,7513,1415   //8962,5668,7513,71017,5135 // 8962,5376,7513,5135,6263 
+void Ex4SuddenDeathInARow(Game *game)
+{
+	ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'Y';
+
+	long int BlueCards[] = {85106,71017,4556,5135,6263};
+	long int RedCards[] = {8962,5376,5668,7513,1415};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{4,1},
+		{5,5},
+		{3,4},
+		{1,2},
+		{5,8},
+		{2,3},
+		{2,6},
+		{3,9},
+		{1,7},//
+		{2,2},
+		{1,3},
+		{4,6},
+		{5,5},
+		{3,4},
+		{3,1},
+		{1,7},
+		{4,9},
+		{5,8},
+		{5,3},
+		{1,6},
+		{2,5},
+		{2,2},
+		{1,4},
+		{3,1},
+		{3,8},
+		{4,7},
+		{4,9},
+		{1,1},
+		{3,2},
+		{4,5},
+		{2,4},
+		{2,3},
+		{4,6},
+		{5,8},
+		{5,7},
+		{3,9}
+	};
+
+	char boardSetupArray[][9] = 
+	{
+		{"NNNNHNLIA"},
+		{"NANNNNNNF"},
+		{"AWFNNHNNA"},
+		{"NANNNNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[0], *playsArray, 36, *boardSetupArray, 5);
+}	
+
+void Test(Game *game)
+{
+	int chosenOption = 0;
+	printf("\n\nTests Repository\n");
+	printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n");
+
+	while(chosenOption != 9)
+	{
+		printf("\nTests Repository - Choose an option (or enter 0 to list all options or 9 to go back): ");
+		scanf("%i", &chosenOption);
+
+		switch(chosenOption)
+		{
+			case 0:
+				printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n");
+				break;
+			
+			case 1:
+				ExSameWallElementalPenalty(game);
+				break;
+
+			case 2:
+				Ex3SuddenDeathInaRow(game);
+				break;
+
+			case 3:
+				Ex4SuddenDeathInARow(game);
+				break;
+
+			case 9:
+				break;
+			
+			default:
+				printf("\nInvalid option. Choose an option from the list.\n");
+
+		}
+	}
 }
 
 void main(void)
@@ -1305,9 +1393,16 @@ void main(void)
 				endGame = 'N';
 				break;
 
+			case 6:
+				break;
+			
 			case 7:
 				Test(&Game);
 				break;
+
+			default:
+				printf("\nInvalid option. Choose an option from the list.\n");
+
 		}
 		printf("\n###################################################################################################\n\n\n");
 	}
