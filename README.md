@@ -1,7 +1,7 @@
-#Final Fantasy 8 Triple Triad Advisor
+# Final Fantasy 8 Triple Triad Advisor
 
 
-##Introduction
+## Introduction
 The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and than develop a function to return which is the best play in a given scenario.
 It consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
 
@@ -16,18 +16,19 @@ From these calculations the game determines which adversary card's you capture. 
 Although simple in the beginning, this game add some complexity later on, and became really challenging. 
 
 
-##To-Do
+## To-Do
 - Modify variables used to iterate over the board slots to stop relate to axis x and y, and relate to lines and columns
 - Pass Slots by ID instead of numbers literals
 - Function to iterate all possible plays in a given scenario
 
 
-##Issues
-###-Does "Same" event enable use de card values insted field values?
+## Issues
+### -Does "Same" event enable use de card values insted field values?
 On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently the Phoenix card captured Krysta Card using its '2' card's right value instead of the '2 - 1 = 1' value derived of the elemental mismatch. Further investigation needed.
 
 
-##Calculation of possible scenarios
+## Calculation of possible scenarios
+```
     Round	Cards On Hand	Spots Available	Possible Plays	Aggregated Possibilities	Possible Scenarios
         1	            5	              9	            45	                      45	        5225472000
         2	            5	              8	            40	                    1800	         116121600
@@ -38,4 +39,5 @@ On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card would
         7	            2	              3	             6	              1306368000	                24
         8	            2	              2	             4	              5225472000	                 4
         9	            1	              1	             1	              5225472000	                 1
+```
 
