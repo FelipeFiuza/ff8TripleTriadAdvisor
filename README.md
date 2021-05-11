@@ -2,8 +2,13 @@
 
 
 ## Introduction
-The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and than develop a function to return which is the best play in a given scenario.
-It consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
+The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and then develop a function to return which is the best play in a given scenario, by brute forcing every possible combination of plays.
+
+Also i expect to generate optimal games, where each side always makes the best possible play, and use these to feed machine learning softwares. I'm planning to start my studies in this area, and having a solid and meaningful example to work with may help me to better absorb the concepts.
+
+To minimize the overhead, and for being the first language I learnt, I chose c language for this project.
+
+The Triple Triad game consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
 
 A simple game: https://www.youtube.com/watch?v=fXADMoL8wbU
 
@@ -23,8 +28,8 @@ Although simple in the beginning, this game add some complexity later on, and be
 
 
 ## Issues
-### -Does "Same" event enable use de card values insted field values?
-On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently the Phoenix card captured Krysta Card using its '2' card's right value instead of the '2 - 1 = 1' value derived of the elemental mismatch. Further investigation needed.
+#### - Does "Same" event enable use of cards values insted field values?
+On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently, the Phoenix card captured Krysta Card using its '2' card's right value ignoring the '2 - 1 = 1' value derived from the elemental mismatch. Further investigation needed.
 
 
 ## Calculation of possible scenarios
