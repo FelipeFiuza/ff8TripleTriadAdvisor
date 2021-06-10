@@ -2,49 +2,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
-/*
-
-#Final Fantasy 8 Triple Triad Advisor
-
-
-##Introduction
-The objective of this project is to emulate the mini-game triple triad from final fantasy 8 (PC, PS1) and then develop a function to return which is the best play in a given scenario.
-It consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
-
-A simple game: https://www.youtube.com/watch?v=fXADMoL8wbU
-
-A complete explanation about the rules: https://www.youtube.com/watch?v=LBYtH97AvyA
-
-A C online compiler if you want to try by yourself: https://www.onlinegdb.com/online_c_compiler
-
-The cards are rectangular and have 4 numeric values, each value associated with each side. When a card is placed on a slot of the board, the numbers representing the adjacent sides of adjacents cards are used in a series of calculation, which depends on wich rules are turned on.
-From these calculations the game determines which adversary card's you capture. Wins the game the player who ends up with most cards. There are several ways to capture the adversary card's.
-Although simple in the beginning, this game add some complexity later on, and became really challenging. 
-
-
-##To-Do
-- Modify variables used to iterate over the board slots to stop relate to axis x and y, and relate to lines and columns
-- Pass Slots by ID instead of numbers literals
-- Function to iterate all possible plays in a given scenario
-
-
-##Issues
-###-Does "Same" event enable use de card values insted field values?
-On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently the Phoenix card captured Krysta Card using its '2' card's right value instead of the '2 - 1 = 1' value derived of the elemental mismatch. Further investigation needed.
-
-
-##Calculation of possible scenarios
-    Round	Cards On Hand	Spots Available	Possible Plays	Aggregated Possibilities	Possible Scenarios
-        1	            5	              9	            45	                      45	        5225472000
-        2	            5	              8	            40	                    1800	         116121600
-        3	            4	              7	            28	                   50400	           2903040
-        4	            4	              6	            24	                 1209600	            103680
-        5	            3	              5	            15	                18144000	              4320
-        6	            3	              4	            12	               217728000	               288
-        7	            2	              3	             6	              1306368000	                24
-        8	            2	              2	             4	              5225472000	                 4
-        9	            1	              1	             1	              5225472000	                 1
-*/
 
 //strings to change the color of the text
 const char colorReset[] = "\033[0m",
@@ -53,8 +10,8 @@ const char colorReset[] = "\033[0m",
 
 typedef struct Card
 {
-	long int Id;
-	int Level,
+	int Id,
+		Level,
 	    Order;
 	char Name[16];
 	int UpValue,
@@ -76,7 +33,6 @@ typedef struct Slot
 	char Element,
          Occupied;
 	Card *Card;
-
 } Slot;
 
 typedef struct Board
@@ -92,7 +48,6 @@ typedef struct Player
 	     Color,
 		 *Name;
 	const char *TxtColor;
-
 } Player;
 
 typedef struct Score
@@ -120,7 +75,6 @@ typedef struct Game
 	Player *PlayerTurn;
 	char SuddenDeathEvent;
     int Round;
-
 } Game;
 
 typedef struct AffectedSlot
@@ -256,6 +210,47 @@ Card CardList[] =
 	{311010,     9,     98,   "Doomtrain",        3,    1,   10,   10,    'P'},
 	{410210,    10,     107,  "Rinoa",            4,   10,    2,   10,    'N'}
 };
+
+void swap (int *x, int *y)
+{
+    int temp;
+    temp = *x;
+    *x = *y;
+    *y = temp;
+}
+
+int factorial(int i)
+{
+   if(i == 1)
+      return 1;
+
+   return i * factorial(i-1);
+
+}
+
+void permute(int *a, int i, int n, int *count, int *list) 
+{
+   int j, k; 
+   if (i == n){
+
+     for(k = 0; k <= n; k++)
+       *(list + 5 * *count + k) = *(a+k);
+
+     *count = *count + 1;
+
+     //printf("%ld\n", *count);
+     //printf("%i%i%i%i%i\n", *a, *(a+1), *(a+2), *(a+3), *(a+4));
+     //printf("%i%i%i%i%i%i%i%i%i\n", *a, *(a+1), *(a+2), *(a+3), *(a+4), *(a+5), *(a+6), *(a+7), *(a+8));
+   }else{
+
+        for (j = i; j <= n; j++)
+       {
+          swap((a + i), (a + j));
+          permute(a, i + 1, n, count, list);
+          swap((a + i), (a + j)); //backtrack
+       }
+   }
+}
 
 int binarySearch(Card arr[], int l, int r, int x) 
 { 
@@ -947,6 +942,69 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 		game->PlayerTurn = &game->Player[0];
 }
 
+void PlayAdvisor(Game *game)
+{
+	int i, j, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvaiable[9], slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2], total[322560];
+
+	printf("\nhey");
+	//get available cards from the two players
+	for(i = 0; i < 5; i++)
+	{
+		for(j = 0; j < 2; j++)
+		{
+			if(game->Player[j].CardsAvailable[i] == 'Y')
+			{	
+				cardsPlayer[j][cardsCount[j]] = i + 1;
+				cardsCount[j]++;
+			}
+		}
+	}
+
+	//get available slots
+	for(i = 0; i < 9; i++)
+	{
+		if(game->Board.Slot[i / 3][i % 3].Occupied == 'N')
+		{
+			slotsAvaiable[slotsCount] = i + 1;
+			slotsCount++;
+		}
+	}
+
+	//calculate combinations of slots possible
+	slotsCombinationsCount = factorial(slotsCount);
+	slotsCombinations = (int*) malloc(slotsCombinationsCount * slotsCount * sizeof(int));
+
+	if(slotsCombinations == NULL)
+	{
+		printf("\nMemory not allocated!");
+		return;
+	}
+
+
+	//calculate combinations of cards possible
+	for(j = 0; j < 2; j++)
+	{
+		cardsCombinationsCount[j] = factorial(cardsCount[j]);
+		cardsCombinations[j] = (int*) malloc(cardsCombinationsCount[j] * sizeof(int));
+	}
+
+	//generate combinations
+	j = 0;
+	permute(slotsAvaiable, 0, slotsCount - 1, &j, slotsCombinations);
+	
+	for(i = 0; i < 20; i++)
+	{
+		for(j = 0; j < slotsCount; j++)
+			printf("%i", *(slotsCombinations + i * slotsCount + j));
+
+		printf("\n");
+	}
+
+	free(slotsCombinations);
+	free(cardsCombinations[0]);
+	free(cardsCombinations[1]);
+}
+
 void StartGame(Game *game)
 {
 	int whoStart, cardNo, slotNo, prevRound;
@@ -976,6 +1034,8 @@ void StartGame(Game *game)
 
 		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)		
 			SetCardPlay(game, cardNo, slotNo);
+		else if (cardNo == 0 && slotNo == 0)
+			PlayAdvisor(game);
 		else
 			printf("\nPlease enter a valid Card Number and Slot Number.\n");
 	}
@@ -984,7 +1044,7 @@ void StartGame(Game *game)
 		PrintGame(*game);
 }
 
-void SuddenDeath(Game *game)
+void SuddenDeathTest(Game *game)
 {
 	int x, y, cardBufferCount[] = {0, 0}, playerIdx, otherPlayerIdx;
 	Card cardBuffer[2][5];
@@ -1039,7 +1099,7 @@ void SuddenDeath(Game *game)
 	game->Round = 0;
 }
 
-void SuddenDeathTest(Game *game)
+void SuddenDeath(Game *game)
 {
 	int x, y, cardBufferCount[] = {0, 0}, playerIdx, otherPlayerIdx;
 	Card cardBuffer[2][5];
@@ -1120,7 +1180,7 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 		}
 
 		if(game->Round == 9 && game->Rules.SuddenDeath == 'Y' && CalcScorePlayer0(*game) == 5)
-			SuddenDeathTest(game);
+			SuddenDeath(game);
 		
 		else if(game->Round == 9)
 			ResetGame(game);
@@ -1377,7 +1437,7 @@ void main(void)
 
 					if(Game.Rules.SuddenDeath == 'Y' && CalcScorePlayer0(Game) == 5)
 					{
-						SuddenDeathTest(&Game);
+						SuddenDeath(&Game);
 
 						if(Game.Rules.Elemental == 'Y')
 							SetElementalBoard(&Game.Board);
