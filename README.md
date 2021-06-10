@@ -8,6 +8,7 @@ Also i expect to generate optimal games, where each side always makes the best p
 
 To minimize the overhead, and for being the first language I learnt, I chose c language for this project.
 
+## The Game
 The Triple Triad game consists in a card game for two players, each with five cards, playing them one at a time, switching turns, on a board with 9 slots disposed on a grid 3x3.
 
 A simple game: https://www.youtube.com/watch?v=fXADMoL8wbU
