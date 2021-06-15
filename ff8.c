@@ -234,7 +234,7 @@ void permute(int *a, int i, int n, int *count, int *list)
    if (i == n){
 
      for(k = 0; k <= n; k++)
-       *(list + 5 * *count + k) = *(a+k);
+       *(list + (n + 1) * *count + k) = *(a+k);
 
      *count = *count + 1;
 
@@ -611,30 +611,30 @@ void PrintCardHand(Player player)
 	printf("\n");
 }
 
-int CalcScorePlayer0(Game game)
+int CalcScore(Game game, Player *player)
 {
-	int i, scorePlayer0 = 0;
+	int i, scorePlayer = 0;
 
 	for(i = 0; i < 5; i++)
 	{
-		if(game.Player[0].CardsHand[i].Color == game.Player[0].Color)
-			scorePlayer0++;
+		if(game.Player[0].CardsHand[i].Color == player->Color)
+			scorePlayer++;
 
-		if(game.Player[1].CardsHand[i].Color == game.Player[0].Color)
-			scorePlayer0++;
+		if(game.Player[1].CardsHand[i].Color == player->Color)
+			scorePlayer++;
 	}
 
-	return scorePlayer0;
+	return scorePlayer;
 }
 
 void PrintScore(Game game)
 {
 	printf("\n%s                                      %4s   %i%s   -%s   %i   %-4s                                      %s",game.Player[0].TxtColor, 
 																															game.Player[0].Name, 
-																															CalcScorePlayer0(game), 
+																															CalcScore(game, &game.Player[0]), 
 																															colorReset,
 																															game.Player[1].TxtColor, 
-																															10-CalcScorePlayer0(game), 
+																															CalcScore(game, &game.Player[1]), 
 																															game.Player[1].Name,
 																															colorReset);
 	printf("\n|-------------------------------||--------------- ---------------||-------------------------------|\n");
@@ -879,14 +879,14 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 	{
 		for(i = 0; i < 4; i++)
 		{
-			/*https://youtu.be/264wi-_Yxmw?t=64 seems strange but had to add this comparison with card value to comply to the video*/
-			if(affectedSlots.AffSlot[i].Valid == 'Y' 
+			//https://youtu.be/264wi-_Yxmw?t=64 seems strange but had to add this comparison with card value to comply to the video
+			if(affectedSlots.AffSlot[i].Valid == 'Y'
 			&& affectedSlots.AffSlot[i].SubtractionCardValue > 0 
 			&& affectedSlots.AffSlot[i].Slot->Card->Color != lastPlayedColor)
 			{
 				affectedSlots.AffSlot[i].Turned = 'Y';
 				affectedSlots.AffSlot[i].Slot->Card->Color = lastPlayedColor;
-				printf("\nSpecial rare move\n");
+				//printf("\nSpecial rare move\n");
 			}
 
 			if(affectedSlots.AffSlot[i].Turned == 'Y')
@@ -902,7 +902,8 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 
 	if(player->CardsAvailable[cardNo - 1] != 'Y' || currentSlot->Occupied != 'N')
 	{
-		printf("\n%sPlease choose an available card and an available slot.\n%s", player->TxtColor, colorReset);
+		printf("\n%sCard %i and Slot %i not avaiable. Please choose an available card and an available slot.\n%s", player->TxtColor, cardNo, slotNo, colorReset);
+		PrintGame(*game);
 		return;
 	}
 
@@ -944,9 +945,11 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 
 void PlayAdvisor(Game *game)
 {
-	int i, j, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvaiable[9], slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2], total[322560];
-
-	printf("\nhey");
+	int i, j, k, l, col, lin, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvaiable[9], 
+	slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2],
+	idxCards[] = {0, 0}, idxSlots = 0, playerTurn, playerIdle, winCount = 0, drawCount = 0, lossCount = 0,
+	firstCard, firstSlot;
+	Game testGame;
 	//get available cards from the two players
 	for(i = 0; i < 5; i++)
 	{
@@ -985,14 +988,23 @@ void PlayAdvisor(Game *game)
 	for(j = 0; j < 2; j++)
 	{
 		cardsCombinationsCount[j] = factorial(cardsCount[j]);
-		cardsCombinations[j] = (int*) malloc(cardsCombinationsCount[j] * sizeof(int));
+		cardsCombinations[j] = (int*) malloc(cardsCombinationsCount[j] * cardsCount[j] * sizeof(int));
 	}
 
-	//generate combinations
+	//generate combinations of slots
 	j = 0;
 	permute(slotsAvaiable, 0, slotsCount - 1, &j, slotsCombinations);
 	
-	for(i = 0; i < 20; i++)
+	//generate combinations of cards
+	j = 0;
+	for(i = 0; i < 2; i++)
+	{
+		permute(cardsPlayer[i], 0, cardsCount[i] - 1, &j, cardsCombinations[i]);
+		j = 0;
+	}
+
+	/*//print combinations
+	for(i = 0; i < slotsCombinationsCount; i++)
 	{
 		for(j = 0; j < slotsCount; j++)
 			printf("%i", *(slotsCombinations + i * slotsCount + j));
@@ -1000,9 +1012,109 @@ void PlayAdvisor(Game *game)
 		printf("\n");
 	}
 
+	for(i = 0; i < cardsCombinationsCount[0]; i++)
+	{
+		for(j = 0; j < cardsCount[0]; j++)
+			printf("%i", *(cardsCombinations[0] + i * cardsCount[0] + j));
+
+		printf("\n");
+	}
+
+	for(i = 0; i < cardsCombinationsCount[1]; i++)
+	{
+		for(j = 0; j < cardsCount[1]; j++)
+			printf("%i", *(cardsCombinations[1] + i * cardsCount[1] + j));
+
+		printf("\n");
+	}*/
+
+	//printf("colorPlayerTurn: %c, colorPlayer0: %c", game->PlayerTurn->Color, game->Player[0].Color);
+	if(game->PlayerTurn->Color == game->Player[0].Color)
+	{
+		playerTurn = 0;
+		playerIdle = 1;
+	} else {
+		playerTurn = 1;
+		playerIdle = 0;
+	}
+
+	firstCard = *(cardsCombinations[playerTurn]);
+	firstSlot = *(slotsCombinations);
+
+	for(idxCards[playerTurn] = 0; idxCards[playerTurn] < cardsCombinationsCount[playerTurn]; idxCards[playerTurn]++)
+	{
+		for(idxSlots = 0; idxSlots < slotsCombinationsCount; idxSlots++)
+		{
+			if(firstCard != *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn]) || firstSlot != *(slotsCombinations + idxSlots * slotsCount))
+			{
+				printf("\nCard %i on Slot %i - Wins:%7.2f%% (%7i) - Draws:%7.2f%% (%7i) - Loss:%7.2f%% (%7i)", firstCard, firstSlot, (float)winCount/(winCount + drawCount + lossCount)* 100, winCount, (float)drawCount/(winCount + drawCount + lossCount)*100, drawCount, (float)lossCount/(winCount + drawCount + lossCount)*100, lossCount);
+				firstCard = *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn]);
+				firstSlot = *(slotsCombinations + idxSlots * slotsCount);
+				winCount = 0;
+				drawCount = 0;
+				lossCount = 0;
+			}
+
+			for(idxCards[playerIdle] = 0; idxCards[playerIdle] < cardsCombinationsCount[playerIdle]; idxCards[playerIdle]++)
+			{
+				testGame = *game;
+				testGame.PlayerTurn = &testGame.Player[playerTurn];
+				for(lin = 0; lin < 3; lin++)
+					for(col = 0; col < 3; col++)
+						for(i = 0; i < 5; i++)
+							if(testGame.Board.Slot[lin][col].Occupied == 'Y' && testGame.Board.Slot[lin][col].Card->SuddenDeathOrder == testGame.Player[playerTurn].CardsHand[i].SuddenDeathOrder)
+							{
+								testGame.Board.Slot[lin][col].Card = &testGame.Player[playerTurn].CardsHand[i];
+								//printf("\nlin: %i, col: %i, card: %i %s", lin, col, i, testGame.Player[playerTurn].CardsHand[i].Name);
+							}	
+							else if(testGame.Board.Slot[lin][col].Occupied == 'Y' && testGame.Board.Slot[lin][col].Card->SuddenDeathOrder == testGame.Player[playerIdle].CardsHand[i].SuddenDeathOrder)
+							{
+								testGame.Board.Slot[lin][col].Card = &testGame.Player[playerIdle].CardsHand[i];
+								//printf("\nlin: %i, col: %i, card: %i %s", lin, col, i, testGame.Player[playerIdle].CardsHand[i].Name);
+							}
+
+
+
+				//printf("\ngame Address: %p - game Size: %d cardAvaiable[4]: %c - %p", &(*game), sizeof(*game), game->Player[0].CardsAvailable[3], &game->Player[0].CardsAvailable[3]);
+				//printf("\ntestGame Address: %p - testGame Size: %d cardAvaiable[4]: %c - %p", &(testGame), sizeof(testGame), testGame.Player[0].CardsAvailable[3], &testGame.Player[0].CardsAvailable[3]);
+
+				i = 0;
+				j = 0;
+				k = 0;
+
+				while(testGame.Round < 9)
+				{
+					//printf("\nround out %i slotsidx: %i %i%i", testGame.Round, idxSlots, *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn] + i), *(slotsCombinations + idxSlots * slotsCount + j));
+					SetCardPlay(&testGame, *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn] + i), *(slotsCombinations + idxSlots * slotsCount + j));
+					i++; 
+					j++;
+					
+					if(testGame.Round < 9)
+					{
+						//printf("\nround in %i - offset %i %i%i", testGame.Round, idxCards[playerIdle], *(cardsCombinations[playerIdle] + idxCards[playerIdle] * cardsCount[playerIdle] + k), *(slotsCombinations + idxSlots * slotsCount + j));
+						SetCardPlay(&testGame, *(cardsCombinations[playerIdle] + idxCards[playerIdle] * cardsCount[playerIdle] + k), *(slotsCombinations + idxSlots * slotsCount + j));
+						j++; 
+						k++;
+					}
+				}
+
+				if(CalcScore(testGame, &testGame.Player[playerTurn]) < 5)
+					lossCount++;
+				else if(CalcScore(testGame, &testGame.Player[playerTurn]) == 5)
+					drawCount++;
+				else
+					winCount++;
+
+				//printf("\nresult: %i x %i", CalcScore(testGame, &testGame.Player[playerTurn]), CalcScore(testGame, &testGame.Player[playerIdle]));
+			}
+		}
+	}
+	printf("\nCard %i on Slot %i - Wins:%7.2f%% (%7i) - Draws:%7.2f%% (%7i) - Loss:%7.2f%% (%7i)", firstCard, firstSlot, (float)winCount/(winCount + drawCount + lossCount)* 100, winCount, (float)drawCount/(winCount + drawCount + lossCount)*100, drawCount, (float)lossCount/(winCount + drawCount + lossCount)*100, lossCount);
+
 	free(slotsCombinations);
 	free(cardsCombinations[0]);
 	free(cardsCombinations[1]);
+
 }
 
 void StartGame(Game *game)
@@ -1042,61 +1154,6 @@ void StartGame(Game *game)
 
 	if(prevRound != game->Round)
 		PrintGame(*game);
-}
-
-void SuddenDeathTest(Game *game)
-{
-	int x, y, cardBufferCount[] = {0, 0}, playerIdx, otherPlayerIdx;
-	Card cardBuffer[2][5];
-
-	for(x = 0; x < 3; x++)
-		for(y = 0; y < 3; y++)
-			game->Board.Slot[x][y].Occupied = 'N';
-
-	printf("\naa%ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c %ld %c ", game->Player[1].CardsHand[0].Id, game->Player[1].CardsHand[0].Color, 
-																					   game->Player[1].CardsHand[1].Id, game->Player[1].CardsHand[1].Color, 
-																					   game->Player[1].CardsHand[2].Id, game->Player[1].CardsHand[2].Color,  
-																					   game->Player[1].CardsHand[3].Id, game->Player[1].CardsHand[3].Color, 
-																					   game->Player[1].CardsHand[4].Id, game->Player[1].CardsHand[4].Color,
-																					   game->Player[0].CardsHand[0].Id, game->Player[0].CardsHand[0].Color,
-																					   game->Player[0].CardsHand[1].Id, game->Player[0].CardsHand[1].Color, 
-																					   game->Player[0].CardsHand[2].Id, game->Player[0].CardsHand[2].Color, 
-																					   game->Player[0].CardsHand[3].Id, game->Player[0].CardsHand[3].Color, 
-																					   game->Player[0].CardsHand[4].Id, game->Player[0].CardsHand[4].Color);
-
-	for(playerIdx = 1; playerIdx >= 0; playerIdx--)
-	{
-		for(x = 0; x < 5; x++)
-		{
-			if(game->Player[playerIdx].CardsHand[x].Color == game->Player[playerIdx].Color)
-			{
-				cardBuffer[playerIdx][cardBufferCount[playerIdx]] = game->Player[playerIdx].CardsHand[x];
-				cardBufferCount[playerIdx]++;
-			}
-			else
-			{
-				if(playerIdx == 1)
-					otherPlayerIdx = 0;
-				else
-					otherPlayerIdx = 1;
-
-				cardBuffer[otherPlayerIdx][cardBufferCount[otherPlayerIdx]] = game->Player[playerIdx].CardsHand[x];
-				cardBufferCount[otherPlayerIdx]++;
-			}
-			printf("\nbb%ld %ld %ld %ld %ld %ld %ld %ld %ld %ld", cardBuffer[0][0].Id, cardBuffer[0][1].Id, cardBuffer[0][2].Id, cardBuffer[0][3].Id, cardBuffer[0][4].Id, cardBuffer[1][0].Id, cardBuffer[1][1].Id, cardBuffer[1][2].Id, cardBuffer[1][3].Id, cardBuffer[1][4].Id);
-		}
-	}
-
-	for(x = 0; x < 5; x++)
-	{
-		game->Player[0].CardsHand[x] = cardBuffer[0][x];
-		game->Player[0].CardsAvailable[x] = 'Y';
-		game->Player[1].CardsHand[x] = cardBuffer[1][x];
-		game->Player[1].CardsAvailable[x] = 'Y';
-	}
-
-	game->SuddenDeathEvent = 'Y';
-	game->Round = 0;
 }
 
 void SuddenDeath(Game *game)
@@ -1157,7 +1214,7 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 
 	while(playsCount > 0)
 	{
-		if(game->Rules.Elemental == 'Y' && boardSetupIdx < boardSetupCount)
+		if(game->Rules.Elemental == 'Y' && boardSetupIdx <= boardSetupCount)
 		{
 			for(lin = 0; lin < 3; lin++)
 				for(col = 0; col < 3; col++)
@@ -1172,14 +1229,14 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 
 		while(game->Round < 9 && playsCount > 0)
 		{
-			printf("\n%s Player sets card %i on slot %i and boardSetupIdx: %i.\n", game->PlayerTurn->Name, playsArray[0], playsArray[1], boardSetupIdx);
 			SetCardPlay(game, playsArray[0], playsArray[1]);
 			PrintGame(*game);
+			printf("\n%s%s Player sets card %i on slot %i.%s\n",game->PlayerTurn->TxtColor, game->PlayerTurn->Name, playsArray[0], playsArray[1], colorReset);
 			playsArray += 2;
 			playsCount--;
 		}
 
-		if(game->Round == 9 && game->Rules.SuddenDeath == 'Y' && CalcScorePlayer0(*game) == 5)
+		if(game->Round == 9 && game->Rules.SuddenDeath == 'Y' && CalcScore(*game, &game->Player[0]) == 5)
 			SuddenDeath(game);
 		
 		else if(game->Round == 9)
@@ -1336,7 +1393,13 @@ void Ex4SuddenDeathInARow(Game *game)
 		{4,6},
 		{5,8},
 		{5,7},
-		{3,9}
+		{3,9}/*,
+		{1,1},
+		{1,2},
+		{2,3},
+		{2,4},
+		{3,5},
+		{3,6}*/
 	};
 
 	char boardSetupArray[][9] = 
@@ -1344,11 +1407,46 @@ void Ex4SuddenDeathInARow(Game *game)
 		{"NNNNHNLIA"},
 		{"NANNNNNNF"},
 		{"AWFNNHNNA"},
+		{"NANNNNNNN"}//,
+		//{"NANNNNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[0], *playsArray, 36, *boardSetupArray, 4);
+}
+
+void ExPlayAdvisor(Game *game)
+{
+	ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'N';
+
+	long int BlueCards[] = {8962,5668,1415,85106,71017};
+	long int RedCards[] = {5376,7513,4556,5135,6263};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{1,1},
+		{1,2},
+		{2,3},
+		{2,4},
+		{3,5},
+		{3,6}
+	};
+
+	char boardSetupArray[][9] = 
+	{
 		{"NANNNNNNN"}
 	};
 
-	StartGameAuto(game, &game->Player[0], *playsArray, 36, *boardSetupArray, 5);
-}	
+	StartGameAuto(game, &game->Player[0], *playsArray, 6, *boardSetupArray, 1);
+}
 
 void Test(Game *game)
 {
@@ -1377,6 +1475,10 @@ void Test(Game *game)
 
 			case 3:
 				Ex4SuddenDeathInARow(game);
+				break;
+
+			case 4:
+				ExPlayAdvisor(game);
 				break;
 
 			case 9:
@@ -1435,7 +1537,7 @@ void main(void)
 				{
 					StartGame(&Game);
 
-					if(Game.Rules.SuddenDeath == 'Y' && CalcScorePlayer0(Game) == 5)
+					if(Game.Rules.SuddenDeath == 'Y' && CalcScore(Game, &Game.Player[0]) == 5)
 					{
 						SuddenDeath(&Game);
 

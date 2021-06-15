@@ -29,7 +29,7 @@ void permute(int *a, int i, int n, long int *count, int *list)
      *count = *count + 1;
 
      //printf("%ld\n", *count);
-     printf("%i%i%i%i%i\n", *a, *(a+1), *(a+2), *(a+3), *(a+4));
+     //printf("%i%i%i%i%i\n", *a, *(a+1), *(a+2), *(a+3), *(a+4));
      //printf("%i%i%i%i%i%i%i%i%i\n", *a, *(a+1), *(a+2), *(a+3), *(a+4), *(a+5), *(a+6), *(a+7), *(a+8));
    }else
    {
