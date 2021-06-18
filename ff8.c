@@ -1088,6 +1088,7 @@ void PlayAdvisor(Game *game)
 					SetCardPlay(&testGame, *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn] + i), *(slotsCombinations + idxSlots * slotsCount + j));
 					i++; 
 					j++;
+					//PrintGame(testGame);
 					
 					if(testGame.Round < 9)
 					{
@@ -1106,6 +1107,7 @@ void PlayAdvisor(Game *game)
 					winCount++;
 
 				//printf("\nresult: %i x %i", CalcScore(testGame, &testGame.Player[playerTurn]), CalcScore(testGame, &testGame.Player[playerIdle]));
+				//PrintGame(testGame);
 			}
 		}
 	}
@@ -1229,9 +1231,9 @@ void StartGameAuto(Game *game, Player *startPlayer, int *playsArray, int playsCo
 
 		while(game->Round < 9 && playsCount > 0)
 		{
+			printf("\n%s%s Player sets card %i on slot %i.%s\n",game->PlayerTurn->TxtColor, game->PlayerTurn->Name, playsArray[0], playsArray[1], colorReset);
 			SetCardPlay(game, playsArray[0], playsArray[1]);
 			PrintGame(*game);
-			printf("\n%s%s Player sets card %i on slot %i.%s\n",game->PlayerTurn->TxtColor, game->PlayerTurn->Name, playsArray[0], playsArray[1], colorReset);
 			playsArray += 2;
 			playsCount--;
 		}
@@ -1452,7 +1454,7 @@ void Test(Game *game)
 {
 	int chosenOption = 0;
 	printf("\n\nTests Repository\n");
-	printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n");
+	printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n4 - PlayAdvisor Test\n");
 
 	while(chosenOption != 9)
 	{
@@ -1462,7 +1464,7 @@ void Test(Game *game)
 		switch(chosenOption)
 		{
 			case 0:
-				printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n");
+				printf("\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n4 - PlayAdvisor Test\n");
 				break;
 			
 			case 1:
