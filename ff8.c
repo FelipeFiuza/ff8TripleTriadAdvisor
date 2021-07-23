@@ -307,7 +307,7 @@ void SetRules (Rules *rules)
 	}
 }
 
-Card RetrieveCard (long int ID)
+Card RetrieveCard (int ID)
 {
 	return CardList[binarySearch(CardList, 0, 110, ID)];
 }
@@ -336,7 +336,7 @@ void ShowAllCards()
 	}
 }
 
-void LoadCardsAuto(Player *player, long int cards[])
+void LoadCardsAuto(Player *player, int cards[])
 {
 	int i, SuddenDeathOrderOffset;
 
@@ -357,7 +357,7 @@ void LoadCardsAuto(Player *player, long int cards[])
 
 void LoadCards(Player *player)
 {
-	long int cardIds[5];
+	int cardIds[5];
 	int i, cardsNotValid = 1;
 
 	while(cardsNotValid)
@@ -714,7 +714,9 @@ AffectedSlot AssignAffectedSlot(Game *game, int slotNo, int xOffset, int yOffset
 	Slot *lastPlayed = &game->Board.Slot[xSlot][ySlot];
 	AffectedSlot affectedSlot;
 
+	affectedSlot.Valid = 'Y';
 	affectedSlot.Turned = 'N';
+	affectedSlot.SameWallTrigger = 'N';
 
 	if(!(xCombined >= 0 && xCombined <= 2 && yCombined >= 0 && yCombined <= 2))
 	{
@@ -748,8 +750,6 @@ AffectedSlot AssignAffectedSlot(Game *game, int slotNo, int xOffset, int yOffset
 		if(game->Board.Slot[xCombined][yCombined].Occupied == 'N')
 		{
 			affectedSlot.Valid = 'N';
-			affectedSlot.SameWallTrigger = 'N';
-
 			return affectedSlot;
 		}
 
@@ -775,18 +775,15 @@ AffectedSlot AssignAffectedSlot(Game *game, int slotNo, int xOffset, int yOffset
 		}
 
 		affectedSlot.Slot = &game->Board.Slot[xCombined][yCombined];
-		affectedSlot.Valid = 'Y';
 
 		lastPlayedFieldValue = &lastPlayed->UpValue + lastPlayedClashingValue;
 		lastPlayedCardValue = &lastPlayed->Card->UpValue + lastPlayedClashingValue;
 		affectedSlotFieldValue = &affectedSlot.Slot->UpValue + affectedSlotClashingValue;
 		affectedSlotCardValue = &affectedSlot.Slot->Card->UpValue + affectedSlotClashingValue;
 
-		
 		affectedSlot.SubtractionFieldValue = *lastPlayedFieldValue - *affectedSlotFieldValue;
 		affectedSlot.SubtractionCardValue = *lastPlayedCardValue - *affectedSlotCardValue;
 		affectedSlot.Sum = *lastPlayedCardValue + *affectedSlotCardValue;
-		affectedSlot.SameWallTrigger = 'N';
 
 		return affectedSlot;
 	}
@@ -797,6 +794,7 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 	int i, j = 0;
 	Slot *currentSlot = &game->Board.Slot[(slotNo-1)/3][(slotNo-1)%3];
 	AffectedSlots affectedSlots;
+	affectedSlots.SameWallEvent = 'N';
 	affectedSlots.AffSlot[0] = AssignAffectedSlot(game, slotNo, -1, 0);
 	affectedSlots.AffSlot[1] = AssignAffectedSlot(game, slotNo, 0 , 1);
 	affectedSlots.AffSlot[2] = AssignAffectedSlot(game, slotNo, 1 , 0);
@@ -1378,8 +1376,8 @@ void ExSameWallElementalPenalty(Game *game)
 	game->Rules.SameWall = 'Y';
 	game->Rules.SuddenDeath = 'Y';
 
-	long int BlueCards[] = {8358,6565,5325,6627,9628};
-	long int RedCards[] = {4489,72710,7543,7581,1451};
+	int BlueCards[] = {8358,6565,5325,6627,9628};
+	int RedCards[] = {4489,72710,7543,7581,1451};
 
 	LoadCardsAuto(&game->Player[0], BlueCards);
 	LoadCardsAuto(&game->Player[1], RedCards);
@@ -1416,8 +1414,8 @@ void Ex3SuddenDeathInaRow(Game *game)
 	game->Rules.SameWall = 'Y';
 	game->Rules.SuddenDeath = 'Y';
 
-	long int BlueCards[] = {4856,10177,31021,69104,1883}; //blue 4489,311010,67610,10177,69104 //blue 4489, 9628, 311010, 67610, 69104
-	long int RedCards[] = {4489,9628,311010,67610,26910}; //red 9628,26910,4856,31021,1883 //red 26910, 4856, 10177, 31021, 1883
+	int BlueCards[] = {4856,10177,31021,69104,1883}; //blue 4489,311010,67610,10177,69104 //blue 4489, 9628, 311010, 67610, 69104
+	int RedCards[] = {4489,9628,311010,67610,26910}; //red 9628,26910,4856,31021,1883 //red 26910, 4856, 10177, 31021, 1883
 	
 	LoadCardsAuto(&game->Player[0], BlueCards);
 	LoadCardsAuto(&game->Player[1], RedCards);
@@ -1473,8 +1471,8 @@ void Ex4SuddenDeathInARow(Game *game)
 	game->Rules.SameWall = 'Y';
 	game->Rules.SuddenDeath = 'Y';
 
-	long int BlueCards[] = {85106,71017,4556,5135,6263};
-	long int RedCards[] = {8962,5376,5668,7513,1415};
+	int BlueCards[] = {85106,71017,4556,5135,6263};
+	int RedCards[] = {8962,5376,5668,7513,1415};
 	
 	LoadCardsAuto(&game->Player[0], BlueCards);
 	LoadCardsAuto(&game->Player[1], RedCards);
@@ -1548,8 +1546,8 @@ void ExPlayAdvisor(Game *game)
 	game->Rules.SameWall = 'Y';
 	game->Rules.SuddenDeath = 'N';
 
-	long int BlueCards[] = {8962,5668,1415,85106,71017};
-	long int RedCards[] = {5376,7513,4556,5135,6263};
+	int BlueCards[] = {8962,5668,1415,85106,71017};
+	int RedCards[] = {5376,7513,4556,5135,6263};
 	
 	LoadCardsAuto(&game->Player[0], BlueCards);
 	LoadCardsAuto(&game->Player[1], RedCards);
@@ -1626,7 +1624,7 @@ void main(void)
 	printf("\n1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n");
 
 	//test
-	Ex4SuddenDeathInARow(&Game);
+	//ggEx4SuddenDeathInARow(&Game);
 
 	while (chosenOption != 6) 
 	{
