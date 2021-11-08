@@ -89,6 +89,15 @@ typedef struct AffectedSlots
 
 } AffectedSlots;
 
+typedef struct Odds
+{
+	int Card,
+		Slot,
+		WinCount,
+		DrawCount,
+		LoseCount;
+} Odds;
+
 Card CardList[] =
 {
 	{1335,       1,     3,    "Bite Bug",         1,    3,    3,    5,    'N'},
@@ -973,7 +982,7 @@ void CopyGame(Game *originalGame, Game *copiedGame)
 
 }
 
-void PlayAdvisor(Game *game)
+void PlayAdvisorCalc(Game *game)
 {
 	int i, j, k, l, col, lin, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvailable[9], 
 	slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2],
@@ -1157,6 +1166,48 @@ void PlayAdvisor(Game *game)
 	free(cardsCombinations[0]);
 	free(cardsCombinations[1]);
 
+}
+
+void PlayAdvisor(Game *game)
+{
+	int i, j, cardsAvailable[5], cardsCount = 0, slotsAvailable[9], slotsCount = 0;
+	Game testGame;
+
+	if(game->Round >= 7)
+	{
+		PlayAdvisorCalc(game);
+	}
+	else
+	{
+		//get available cards
+		for(i = 0; i < 5; i++)
+		{			
+			if(game->PlayerTurn->CardsAvailable[i] == 'Y')
+			{	
+				cardsAvailable[cardsCount] = i + 1;
+				cardsCount++;
+			}
+		}
+
+		//get available slots
+		for(i = 0; i < 9; i++)
+		{
+			if(game->Board.Slot[i / 3][i % 3].Occupied == 'N')
+			{
+				slotsAvailable[slotsCount] = i + 1;
+				slotsCount++;
+			}
+		}
+
+		for(i = 0; i < cardsCount; i++)
+			for(j = 0; j < slotsCount; j++)
+			{
+				CopyGame(game, &testGame);
+				SetCardPlay(&testGame, cardsAvailable[i], slotsAvailable[j]);
+				printf("\n##### Card: %i on Slot: %i", cardsAvailable[i], slotsAvailable[j]);
+				PlayAdvisorCalc(&testGame);
+			}
+	}
 }
 
 void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
