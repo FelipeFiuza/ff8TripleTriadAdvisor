@@ -901,8 +901,7 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 
 	if(player->CardsAvailable[cardNo - 1] != 'Y' || currentSlot->Occupied != 'N')
 	{
-		printf("\n%sCard %i and Slot %i not avaiable. Please choose an available card and an available slot.\n%s", player->TxtColor, cardNo, slotNo, colorReset);
-		PrintGame(*game);
+		printf("\n%sCard %i and Slot %i not available. Please choose an available card and an available slot.\n%s", player->TxtColor, cardNo, slotNo, colorReset);
 		return;
 	}
 
@@ -942,9 +941,41 @@ void SetCardPlay (Game *game, int cardNo, int slotNo)
 		game->PlayerTurn = &game->Player[0];
 }
 
+void CopyGame(Game *originalGame, Game *copiedGame)
+{
+	*copiedGame = *originalGame;
+	int lin, col, i, playerTurn, playerIdle;
+
+	if(originalGame->PlayerTurn->Color == originalGame->Player[0].Color)
+	{
+		playerTurn = 0;
+		playerIdle = 1;
+	} 
+	else 
+	{
+		playerTurn = 1;
+		playerIdle = 0;
+	}
+
+	for(lin = 0; lin < 3; lin++)
+		for(col = 0; col < 3; col++)
+			for(i = 0; i < 5; i++)
+				if(copiedGame->Board.Slot[lin][col].Occupied == 'Y' && copiedGame->Board.Slot[lin][col].Card->SuddenDeathOrder == copiedGame->Player[playerTurn].CardsHand[i].SuddenDeathOrder)
+				{
+					copiedGame->Board.Slot[lin][col].Card = &copiedGame->Player[playerTurn].CardsHand[i];
+				}	
+				else if(copiedGame->Board.Slot[lin][col].Occupied == 'Y' && copiedGame->Board.Slot[lin][col].Card->SuddenDeathOrder == copiedGame->Player[playerIdle].CardsHand[i].SuddenDeathOrder)
+				{
+					copiedGame->Board.Slot[lin][col].Card = &copiedGame->Player[playerIdle].CardsHand[i];
+				}
+
+	copiedGame->PlayerTurn = &copiedGame->Player[playerTurn];
+
+}
+
 void PlayAdvisor(Game *game)
 {
-	int i, j, k, l, col, lin, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvaiable[9], 
+	int i, j, k, l, col, lin, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvailable[9], 
 	slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2],
 	idxCards[] = {0, 0}, idxSlots = 0, playerTurn, playerIdle, winCount = 0, drawCount = 0, lossCount = 0,
 	*firstCard, *firstSlot;
@@ -967,7 +998,7 @@ void PlayAdvisor(Game *game)
 	{
 		if(game->Board.Slot[i / 3][i % 3].Occupied == 'N')
 		{
-			slotsAvaiable[slotsCount] = i + 1;
+			slotsAvailable[slotsCount] = i + 1;
 			slotsCount++;
 		}
 	}
@@ -999,7 +1030,7 @@ void PlayAdvisor(Game *game)
 
 	//generate combinations of slots
 	j = 0;
-	permute(slotsAvaiable, 0, slotsCount - 1, &j, slotsCombinations);
+	permute(slotsAvailable, 0, slotsCount - 1, &j, slotsCombinations);
 	
 	//generate combinations of cards
 	j = 0;
@@ -1030,7 +1061,8 @@ void PlayAdvisor(Game *game)
 		{
 			for(idxCards[playerIdle] = 0; idxCards[playerIdle] < cardsCombinationsCount[playerIdle]; idxCards[playerIdle]++)
 			{
-				testGame = *game;
+				CopyGame(game, &testGame);
+				/*testGame = *game;
 
 				for(lin = 0; lin < 3; lin++)
 					for(col = 0; col < 3; col++)
@@ -1044,7 +1076,7 @@ void PlayAdvisor(Game *game)
 								testGame.Board.Slot[lin][col].Card = &testGame.Player[playerIdle].CardsHand[i];
 							}
 
-				testGame.PlayerTurn = &testGame.Player[playerTurn];
+				testGame.PlayerTurn = &testGame.Player[playerTurn];*/
 				i = 0;
 				j = 0;
 				k = 0;
@@ -1127,43 +1159,97 @@ void PlayAdvisor(Game *game)
 
 }
 
-void StartGame(Game *game)
+void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
 {
-	int whoStart, cardNo, slotNo, prevRound;
+	int chosenOption = 0;
+	char menu[]= "\n1 - Play Advisor\n2 - Undo Last Play\n";
+	printf("\n\nIn-game Menu\n");
+	printf("%s", menu);
 
-	if(game->Round == 0 && game->SuddenDeathEvent == 'N')
+
+	while(chosenOption != 9)
+	{
+		printf("\nIn-game Menu - Choose an option (or enter 0 to list all options or enter 9 to go back): ");
+		scanf("%i", &chosenOption);
+
+		switch(chosenOption)
+		{
+			case 0:
+				printf("%s", menu);
+				break;
+			
+			case 1:
+				PlayAdvisor(game);
+				return;
+
+			case 2:
+				if(gameBackupAvailable == 'Y')
+					CopyGame(backupGame, game);
+				else
+					printf("\nNo game backup available.\n");
+				return;
+
+			case 9:
+				break;
+			
+			default:
+				printf("\nInvalid option. Choose an option from the list.\n");
+
+		}
+	}
+
+}
+
+void StartGame(Game *thisGame)
+{
+	Game game, gameBackup[9];
+	int whoStart, cardNo, slotNo, prevRound;
+	char gameBackupAvailable[9] = "NNNNNNNNN";
+	
+	CopyGame(thisGame, &game);
+
+	if(game.Round == 0 && game.SuddenDeathEvent == 'N')
 	{
 		printf("\nStarting the Game\n");
 
-		printf("\nWho starts?\n1 - %s\n2 - %s\n", game->Player[0].Name, game->Player[1].Name);
+		printf("\nWho starts?\n1 - %s\n2 - %s\n", game.Player[0].Name, game.Player[1].Name);
 		while( getchar() != '\n' );
 		scanf("%i", &whoStart);
 
 		if(whoStart == 1)
-			game->PlayerTurn = &game->Player[0];
+			game.PlayerTurn = &game.Player[0];
 		else
-			game->PlayerTurn = &game->Player[1];
+			game.PlayerTurn = &game.Player[1];
 	} 
 
-	while(game->Round < 9)
+	while(game.Round < 9)
 	{
-		prevRound = game->Round;
-		PrintGame(*game);
+		prevRound = game.Round;
+		PrintGame(game);
 
-		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
+		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game.PlayerTurn->TxtColor, game.PlayerTurn->Name, colorReset);
 		while( getchar() != '\n' );
 		scanf("%i %i", &cardNo, &slotNo);
 
-		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)		
-			SetCardPlay(game, cardNo, slotNo);
+		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)
+		{
+			CopyGame(&game, &gameBackup[game.Round]);
+			gameBackupAvailable[game.Round] = 'Y';
+			SetCardPlay(&game, cardNo, slotNo);
+		}	
 		else if (cardNo == 0 && slotNo == 0)
-			PlayAdvisor(game);
+		{
+			if(game.Round > 0)
+				inGameMenu(&game, &gameBackup[game.Round - 1], gameBackupAvailable[game.Round - 1]);
+			else
+				inGameMenu(&game, &game, 'N');
+		}
 		else
 			printf("\nPlease enter a valid Card Number and Slot Number.\n");
 	}
 
-	if(prevRound != game->Round)
-		PrintGame(*game);
+	if(prevRound != game.Round)
+		PrintGame(game);
 }
 
 void SuddenDeath(Game *game)
@@ -1546,7 +1632,7 @@ void Test(Game *game)
 
 	while(chosenOption != 9)
 	{
-		printf("\nTests Repository - Choose an option (or enter 0 to list all options or 9 to go back): ");
+		printf("\nTests Repository - Choose an option (or enter 0 to list all options or enter 9 to go back): ");
 		scanf("%i", &chosenOption);
 
 		switch(chosenOption)
@@ -1587,6 +1673,7 @@ void Test(Game *game)
 
 void main(void)
 {
+
 	Game Game = initGame();
 	int chosenOption = 0;
 	char endGame = 'N';
