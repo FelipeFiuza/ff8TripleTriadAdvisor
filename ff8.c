@@ -65,7 +65,8 @@ typedef struct Game
     Board Board;
     Rules Rules;
 	Player *PlayerTurn;
-	char SuddenDeathEvent;
+	char SuddenDeathEvent,
+		 EndGame;
     int Round;
 } Game;
 
@@ -630,13 +631,13 @@ int CalcScore(Game game, Player *player)
 
 void PrintScore(Game game)
 {
-	printf("\n%s                                      %4s   %i%s   -%s   %i   %-4s                                      %s",game.Player[0].TxtColor, 
-																															game.Player[0].Name, 
-																															CalcScore(game, &game.Player[0]), 
-																															colorReset,
-																															game.Player[1].TxtColor, 
+	printf("\n%s                                      %4s   %i%s   -%s   %i   %-4s                                      %s",game.Player[1].TxtColor, 
+																															game.Player[1].Name, 
 																															CalcScore(game, &game.Player[1]), 
-																															game.Player[1].Name,
+																															colorReset,
+																															game.Player[0].TxtColor, 
+																															CalcScore(game, &game.Player[0]), 
+																															game.Player[0].Name,
 																															colorReset);
 	printf("\n|-------------------------------||--------------- ---------------||-------------------------------|\n");
 
@@ -644,9 +645,9 @@ void PrintScore(Game game)
 
 void PrintGame(Game game)
 {
-	printf("\n\n\n\n Round: %i #########################################################################################\n", game.Round);
-	PrintCardHand(game.Player[0]);
+	printf("\n\n Round: %i #########################################################################################\n", game.Round);
 	PrintCardHand(game.Player[1]);
+	PrintCardHand(game.Player[0]);
 	PrintBoard(game.Board);
 	PrintScore(game);
 }
@@ -656,6 +657,7 @@ void ResetGame(Game *game)
 	int x, y;
 	game->SuddenDeathEvent = 'N';
 	game->Round = 0;
+	game->EndGame = 'N';
 
 	for(x = 0; x < 3; x++)
 		for(y = 0; y < 3; y++)
@@ -675,6 +677,7 @@ Game initGame(void)
 	int x, y;
 	Game Game;
 
+	Game.EndGame = 'N';
 	Game.Round = 0;
 	Game.SuddenDeathEvent = 'N';
 	Game.Rules.Elemental = 'N';
@@ -809,7 +812,7 @@ void EvaluateCardPlay (Game *game, int slotNo, char isCombo)
 		{
 			affectedSlots.SameWallEvent = 'Y';
 
-			for(i = i; i < 4; i++)
+			for(i = i + 1; i < 4; i++)
 			{
 				if(affectedSlots.AffSlot[i].SameWallTrigger == 'Y')
 
@@ -1251,56 +1254,54 @@ void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
 
 }
 
-void StartGame(Game *thisGame)
+void StartGame(Game *game)
 {
-	Game game, gameBackup[9];
+	Game gameBackup[9];
 	int whoStart, cardNo, slotNo, prevRound;
 	char gameBackupAvailable[9] = "NNNNNNNNN";
-	
-	CopyGame(thisGame, &game);
 
-	if(game.Round == 0 && game.SuddenDeathEvent == 'N')
+	if(game->Round == 0 && game->SuddenDeathEvent == 'N')
 	{
 		printf("\nStarting the Game\n");
 
-		printf("\nWho starts?\n1 - %s\n2 - %s\n", game.Player[0].Name, game.Player[1].Name);
+		printf("\nWho starts?\n1 - %s\n2 - %s\n", game->Player[0].Name, game->Player[1].Name);
 		while( getchar() != '\n' );
 		scanf("%i", &whoStart);
 
 		if(whoStart == 1)
-			game.PlayerTurn = &game.Player[0];
+			game->PlayerTurn = &game->Player[0];
 		else
-			game.PlayerTurn = &game.Player[1];
+			game->PlayerTurn = &game->Player[1];
 	} 
 
-	while(game.Round < 9)
+	while(game->Round < 9)
 	{
-		prevRound = game.Round;
-		PrintGame(game);
+		prevRound = game->Round;
+		PrintGame(*game);
 
-		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game.PlayerTurn->TxtColor, game.PlayerTurn->Name, colorReset);
+		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
 		while( getchar() != '\n' );
 		scanf("%i %i", &cardNo, &slotNo);
 
 		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)
 		{
-			CopyGame(&game, &gameBackup[game.Round]);
-			gameBackupAvailable[game.Round] = 'Y';
-			SetCardPlay(&game, cardNo, slotNo);
+			CopyGame(game, &gameBackup[game->Round]);
+			gameBackupAvailable[game->Round] = 'Y';
+			SetCardPlay(game, cardNo, slotNo);
 		}	
 		else if (cardNo == 0 && slotNo == 0)
 		{
-			if(game.Round > 0)
-				inGameMenu(&game, &gameBackup[game.Round - 1], gameBackupAvailable[game.Round - 1]);
+			if(game->Round > 0)
+				inGameMenu(game, &gameBackup[game->Round - 1], gameBackupAvailable[game->Round - 1]);
 			else
-				inGameMenu(&game, &game, 'N');
+				inGameMenu(game, game, 'N');
 		}
 		else
 			printf("\nPlease enter a valid Card Number and Slot Number.\n");
 	}
 
-	if(prevRound != game.Round)
-		PrintGame(game);
+	if(prevRound != game->Round)
+		PrintGame(*game);
 }
 
 void SuddenDeath(Game *game)
@@ -1519,7 +1520,7 @@ void Ex4SuddenDeathInARow(Game *game)
 		{2,3},
 		{2,6},
 		{3,9},
-		{1,7},//
+		{1,7},
 		{2,2},
 		{1,3},
 		{4,6},
@@ -1673,10 +1674,47 @@ void Ex2PlayAdvisor(Game *game)
 	StartGameAuto(game, &game->Player[1], *playsArray, 39, *boardSetupArray, 5);
 }
 
+void ExSameWallDoubleA(Game *game)
+{
+	ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'Y';
+
+	int BlueCards[] = {10177, 101033, 7728, 2763, 8854};
+	int RedCards[] = {6112, 7285, 5334, 1415, 1335};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{1,1},
+		{1,2},
+		{2,3},
+		{2,5},
+		{4,6},
+		{4,8},
+		{5,4},
+		{3,7},
+		{3,9}
+	};
+
+	char boardSetupArray[][9] = 
+	{
+		{"FNAWNNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[0], *playsArray, 9, *boardSetupArray, 1);
+}
+
 void Test(Game *game)
 {
 	int chosenOption = 0;
-	char menu[]= "\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n4 - PlayAdvisor Test\n5 - PlayAdvisor Test 2\n";
+	char menu[]= "\n1 - SameWall Trigger Card ignoring elemental mismatch penalty (https://youtu.be/264wi-_Yxmw?t=16)\n2 - 3 SuddenDeaths in a row, with a total combo (https://youtu.be/264wi-_Yxmw?t=91)\n3 - 4 SuddenDeaths in a row, with combo\n4 - PlayAdvisor Test\n5 - PlayAdvisor Test 2\n6 - SameWall Double A (FINAL FANTASY VIII 2021-07-24 23-03-15.mp4)\n";
 	printf("\n\nTests Repository\n");
 	printf("%s", menu);
 
@@ -1712,6 +1750,10 @@ void Test(Game *game)
 				Ex2PlayAdvisor(game);
 				break;
 
+			case 6:
+				ExSameWallDoubleA(game);
+				break;
+
 			case 9:
 				break;
 			
@@ -1727,7 +1769,6 @@ void main(void)
 
 	Game Game = initGame();
 	int chosenOption = 0;
-	char endGame = 'N';
 	char menu[] = "\n1 - List all Cards\n2 - Set Rules\n3 - Set Elemental Board\n4 - Set Players\' Cards\n5 - Start Game\n6 - Exit\n7 - Test\n";
 
 	printf("\n#############################   Final Fantasy 8 Triple Triad Advisor   #############################\n\n\n");
@@ -1768,7 +1809,7 @@ void main(void)
 				break;
 
 			case 5:
-				while(endGame == 'N')
+				while(Game.EndGame == 'N')
 				{
 					StartGame(&Game);
 
@@ -1778,16 +1819,13 @@ void main(void)
 
 						if(Game.Rules.Elemental == 'Y')
 							SetElementalBoard(&Game.Board);
-
-						StartGame(&Game);
 					}
 					else
 					{
-						ResetGame(&Game);
-						endGame = 'Y';
+						Game.EndGame = 'Y';
 					}
 				}
-				endGame = 'N';
+				ResetGame(&Game);
 				break;
 
 			case 6:
@@ -1804,3 +1842,6 @@ void main(void)
 		printf("\n###################################################################################################\n\n\n");
 	}
 }
+
+//#testar sudden death
+//rever uso do copygame no start game
