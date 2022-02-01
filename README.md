@@ -30,7 +30,7 @@ Although simple in the beginning, this game add some complexity later on, and be
 
 ## Issues
 #### - Does "Same" event enable use of cards values insted field values?
-On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently, the Phoenix card captured Krysta Card using its '2' card's right value ignoring the '2 - 1 = 1' value derived from the elemental mismatch. Further investigation needed.
+On this play https://www.youtube.com/watch?v=264wi-_Yxmw&t=64s Krysta card wouldn't be turned by on my first undestanding. The '2-1 = 1' Phoenix right value wouldn't be able to turn the '1' value of Krysta card on slot 5. Apparently, the Phoenix card captured Krysta Card using its '2' card's right value ignoring the '2 - 1 = 1' value derived from the elemental mismatch. Further investigation needed.
 
 
 ## Calculation of possible scenarios

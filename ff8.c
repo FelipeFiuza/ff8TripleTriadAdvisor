@@ -90,14 +90,21 @@ typedef struct AffectedSlots
 
 } AffectedSlots;
 
-typedef struct Odds
+typedef struct Outcome
 {
 	int Card,
 		Slot,
 		WinCount,
 		DrawCount,
 		LoseCount;
-} Odds;
+} Outcome;
+
+typedef struct GroupedOutcomes
+{
+	Outcome* Outcomes;
+	int Card,
+	 	Slot;
+} GroupedOutcomes;
 
 Card CardList[] =
 {
@@ -282,25 +289,25 @@ void SetRules (Rules *rules)
 	printf("\nSetting the game's rules: \n");
 
 	while( getchar() != '\n' );
-	printf("\nEnable *Elemental* rule? (Y/N)");
+	printf("\nEnable *Elemental* rule? (Y/N) ");
 	scanf("%c", &rules->Elemental);
 
 	while( getchar() != '\n' );
-	printf("\nEnable *SuddenDeath* rule? (Y/N)");
+	printf("\nEnable *SuddenDeath* rule? (Y/N) ");
 	scanf("%c", &rules->SuddenDeath);
 
 	while( getchar() != '\n' );
-	printf("\nEnable *Plus* rule? (Y/N)");
+	printf("\nEnable *Plus* rule? (Y/N) ");
 	scanf("%c", &rules->Plus);
 
 	while( getchar() != '\n' );
-	printf("\nEnable *Same* rule? (Y/N)");
+	printf("\nEnable *Same* rule? (Y/N) ");
 	scanf("%c", &rules->Same);
 
 	if(rules->Same == 'Y')
 	{
 		while( getchar() != '\n' );
-		printf("\nEnable *Same Wall* rule? (Y/N)");
+		printf("\nEnable *Same Wall* rule? (Y/N) ");
 		scanf("%c", &rules->SameWall);
 	}
 	else
@@ -985,13 +992,65 @@ void CopyGame(Game *originalGame, Game *copiedGame)
 
 }
 
-void PlayAdvisorCalc(Game *game)
+void PrintOutcomes(GroupedOutcomes *groupedOutcomes, int groupedOutcomesCount, int outcomesCount)
+{
+	int i, j, gamesCount;
+	float maxLoseRate, minWinRate, loseRate, winRate;
+	gamesCount = groupedOutcomes[0].Outcomes[0].LoseCount + groupedOutcomes[0].Outcomes[0].DrawCount + groupedOutcomes[0].Outcomes[0].WinCount;
+
+	for(i = 0; i < groupedOutcomesCount; i++)
+	{
+		printf("\n##### Card: %i on Slot: %i", groupedOutcomes[i].Card, groupedOutcomes[i].Slot);
+
+		for(j = 0; j < outcomesCount; j++)
+		{
+			printf("\nCard %i on Slot %i - Wins:%7.2f%% (%7i)  -  Draws:%7.2f%% (%7i)  -  Loss:%7.2f%% (%7i)", groupedOutcomes[i].Outcomes[j].Card, groupedOutcomes[i].Outcomes[j].Slot, (float)groupedOutcomes[i].Outcomes[j].LoseCount/gamesCount * 100, groupedOutcomes[i].Outcomes[j].LoseCount, (float)groupedOutcomes[i].Outcomes[j].DrawCount/gamesCount * 100, groupedOutcomes[i].Outcomes[j].DrawCount, (float)groupedOutcomes[i].Outcomes[j].WinCount/gamesCount * 100, groupedOutcomes[i].Outcomes[j].WinCount);
+		}
+	}
+
+	printf("\n\n#####                                ##### Odds  Summary #####                                #####");
+
+	for(i = 0; i < groupedOutcomesCount; i++)
+	{
+		maxLoseRate = groupedOutcomes[i].Outcomes[0].WinCount;
+		minWinRate = groupedOutcomes[i].Outcomes[0].LoseCount;
+		loseRate = 0;
+		winRate = 0;
+
+		for(j = 0; j < outcomesCount; j++)
+		{
+			if(groupedOutcomes[i].Outcomes[j].LoseCount < minWinRate)
+				minWinRate = groupedOutcomes[i].Outcomes[j].LoseCount;
+
+			if(groupedOutcomes[i].Outcomes[j].WinCount > maxLoseRate)
+				maxLoseRate = groupedOutcomes[i].Outcomes[j].WinCount;
+
+			loseRate += groupedOutcomes[i].Outcomes[j].WinCount;
+			winRate += groupedOutcomes[i].Outcomes[j].LoseCount;
+		}
+
+		maxLoseRate = maxLoseRate / gamesCount * 100;
+		minWinRate = minWinRate / gamesCount * 100;
+		loseRate = loseRate / (outcomesCount * gamesCount) * 100;
+		winRate = winRate / (outcomesCount * gamesCount) * 100;
+
+		printf("\n##### Card %i on Slot %i  -  Min Win:%7.2f%%  -  Max Lose:%7.2f%%  -  Win:%7.2f%% - Lose:%7.2f%%", groupedOutcomes[i].Card, groupedOutcomes[i].Slot, minWinRate, maxLoseRate, winRate, loseRate);
+		
+	}
+
+}
+
+void PlayAdvisorCalc(Game *game, Outcome *outcomes)
 {
 	int i, j, k, l, col, lin, cardsCount[] = {0, 0}, slotsCount = 0, cardsPlayer[2][5], slotsAvailable[9], 
 	slotsCombinationsCount, *slotsCombinations, cardsCombinationsCount[2], *cardsCombinations[2],
 	idxCards[] = {0, 0}, idxSlots = 0, playerTurn, playerIdle, winCount = 0, drawCount = 0, lossCount = 0,
 	*firstCard, *firstSlot;
 	Game testGame;
+	outcomes->LoseCount = 0;
+	outcomes->DrawCount = 0;
+	outcomes->WinCount = 0;
+
 	//get available cards from the two players
 	for(i = 0; i < 5; i++)
 	{
@@ -1108,11 +1167,17 @@ void PlayAdvisorCalc(Game *game)
 				}
 
 				if(CalcScore(testGame, &testGame.Player[playerTurn]) < 5)
+				{
 					lossCount++;
+				}
 				else if(CalcScore(testGame, &testGame.Player[playerTurn]) == 5)
+				{
 					drawCount++;
+				}
 				else
+				{
 					winCount++;
+				}
 
 			}
 
@@ -1156,7 +1221,13 @@ void PlayAdvisorCalc(Game *game)
 
 		if(*firstSlot != *(slotsCombinations + idxSlots * slotsCount) || *firstCard != *(cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn]))
 		{
-			printf("\nCard %i on Slot %i - Wins:%7.2f%% (%7i) - Draws:%7.2f%% (%7i) - Loss:%7.2f%% (%7i)", *firstCard, *firstSlot, (float)winCount/(winCount + drawCount + lossCount)* 100, winCount, (float)drawCount/(winCount + drawCount + lossCount)*100, drawCount, (float)lossCount/(winCount + drawCount + lossCount)*100, lossCount);
+			outcomes->Card = *firstCard;
+			outcomes->Slot = *firstSlot;
+			outcomes->LoseCount = lossCount;
+			outcomes->DrawCount = drawCount;
+			outcomes->WinCount = winCount;
+			outcomes++;
+			//printf("\nCard %i on Slot %i - Wins:%7.2f%% (%7i) - Draws:%7.2f%% (%7i) - Loss:%7.2f%% (%7i)", *firstCard, *firstSlot, (float)winCount/(winCount + drawCount + lossCount)* 100, winCount, (float)drawCount/(winCount + drawCount + lossCount)*100, drawCount, (float)lossCount/(winCount + drawCount + lossCount)*100, lossCount);
 			firstCard = (cardsCombinations[playerTurn] + idxCards[playerTurn] * cardsCount[playerTurn]);
 			firstSlot = (slotsCombinations + idxSlots * slotsCount);
 			winCount = 0;
@@ -1173,44 +1244,97 @@ void PlayAdvisorCalc(Game *game)
 
 void PlayAdvisor(Game *game)
 {
-	int i, j, cardsAvailable[5], cardsCount = 0, slotsAvailable[9], slotsCount = 0;
+	int i, j, k, cardsAvailable[5], cardsCount = 0, slotsAvailable[9], slotsCount = 0, groupedOutcomesCount, outcomesCount, idxGroupedOutcomes = 0, idxOutcomes = 0;
 	Game testGame;
+	GroupedOutcomes* groupedOutcomes;
 
-	if(game->Round >= 7)
+	//get available cards
+	for(i = 0; i < 5; i++)
+	{			
+		if(game->PlayerTurn->CardsAvailable[i] == 'Y')
+		{	
+			cardsAvailable[cardsCount] = i + 1;
+			cardsCount++;
+		}
+	}
+
+	//get available slots
+	for(i = 0; i < 9; i++)
 	{
-		PlayAdvisorCalc(game);
+		if(game->Board.Slot[i / 3][i % 3].Occupied == 'N')
+		{
+			slotsAvailable[slotsCount] = i + 1;
+			slotsCount++;
+		}
+	}
+
+	groupedOutcomesCount = cardsCount * slotsCount;
+	
+	if(game->Round % 2 == 0)
+		outcomesCount = cardsCount * (slotsCount - 1);
+	else if (game->Round < 8)
+		outcomesCount = (cardsCount - 1) * (slotsCount - 1);
+	else
+		outcomesCount = 1;
+	
+	groupedOutcomes = malloc(groupedOutcomesCount * sizeof(GroupedOutcomes));
+	if(groupedOutcomes == NULL)
+	{
+		printf("\nMemory not allocated!");
+		return;
+	}
+
+	for(i = 0; i < groupedOutcomesCount; i++)
+	{
+		groupedOutcomes[i].Outcomes = malloc(outcomesCount * sizeof(Outcome));
+
+		if(groupedOutcomes[i].Outcomes == NULL)
+		{
+			printf("\nMemory not allocated!");
+			return;
+		}
+
+		for(j = 0; j < outcomesCount; j++)
+		{
+			groupedOutcomes[i].Outcomes[j].WinCount = 0;
+			groupedOutcomes[i].Outcomes[j].DrawCount = 0;
+			groupedOutcomes[i].Outcomes[j].LoseCount = 0;
+		}
+	}
+
+	if(game->Round >= 8)
+	{
+		groupedOutcomes[0].Card = cardsAvailable[0];
+		groupedOutcomes[0].Slot = slotsAvailable[0];
+		PlayAdvisorCalc(game, groupedOutcomes[idxGroupedOutcomes].Outcomes);
 	}
 	else
-	{
-		//get available cards
-		for(i = 0; i < 5; i++)
-		{			
-			if(game->PlayerTurn->CardsAvailable[i] == 'Y')
-			{	
-				cardsAvailable[cardsCount] = i + 1;
-				cardsCount++;
-			}
-		}
-
-		//get available slots
-		for(i = 0; i < 9; i++)
-		{
-			if(game->Board.Slot[i / 3][i % 3].Occupied == 'N')
-			{
-				slotsAvailable[slotsCount] = i + 1;
-				slotsCount++;
-			}
-		}
-
+	{		
 		for(i = 0; i < cardsCount; i++)
+		{
 			for(j = 0; j < slotsCount; j++)
 			{
+				//printf("\n##### Card: %i on Slot: %i", cardsAvailable[i], slotsAvailable[j]);
 				CopyGame(game, &testGame);
 				SetCardPlay(&testGame, cardsAvailable[i], slotsAvailable[j]);
-				printf("\n##### Card: %i on Slot: %i", cardsAvailable[i], slotsAvailable[j]);
-				PlayAdvisorCalc(&testGame);
+				groupedOutcomes[idxGroupedOutcomes].Card = cardsAvailable[i];
+				groupedOutcomes[idxGroupedOutcomes].Slot = slotsAvailable[j];
+				PlayAdvisorCalc(&testGame, groupedOutcomes[idxGroupedOutcomes].Outcomes);
+				idxGroupedOutcomes++;
 			}
+		}
 	}
+
+	PrintOutcomes(groupedOutcomes, groupedOutcomesCount, outcomesCount);
+
+	for(i = 0; i < groupedOutcomesCount; i++)
+	{
+		free(groupedOutcomes[i].Outcomes);
+		groupedOutcomes[i].Outcomes = 0;
+	}
+		
+	free(groupedOutcomes);
+	groupedOutcomes = 0;
 }
 
 void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
@@ -1223,6 +1347,7 @@ void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
 
 	while(chosenOption != 9)
 	{
+		while( getchar() != '\n' );
 		printf("\nIn-game Menu - Choose an option (or enter 0 to list all options or enter 9 to go back): ");
 		scanf("%i", &chosenOption);
 
@@ -1233,7 +1358,10 @@ void inGameMenu (Game *game, Game *backupGame, char gameBackupAvailable)
 				break;
 			
 			case 1:
-				PlayAdvisor(game);
+				if(game->Round >= 8)
+					printf("\nYour destiny is sealed, just play the goddamn card!");
+				else
+					PlayAdvisor(game);
 				return;
 
 			case 2:
@@ -1258,29 +1386,39 @@ void StartGame(Game *game)
 {
 	Game gameBackup[9];
 	int whoStart, cardNo, slotNo, prevRound;
-	char gameBackupAvailable[9] = "NNNNNNNNN";
+	char gameBackupAvailable[9] = "NNNNNNNNN", setElement;
 
 	if(game->Round == 0 && game->SuddenDeathEvent == 'N')
 	{
 		printf("\nStarting the Game\n");
 
-		printf("\nWho starts?\n1 - %s\n2 - %s\n", game->Player[0].Name, game->Player[1].Name);
 		while( getchar() != '\n' );
+		printf("\nWho starts?\n1 - %s\n2 - %s\n", game->Player[0].Name, game->Player[1].Name);
 		scanf("%i", &whoStart);
 
 		if(whoStart == 1)
 			game->PlayerTurn = &game->Player[0];
 		else
 			game->PlayerTurn = &game->Player[1];
-	} 
+	}
+
+	if(game->SuddenDeathEvent == 'Y' && game->Rules.Elemental == 'Y')
+	{
+		while( getchar() != '\n' );
+		printf("\nSet Elemental Board? (Y/N) ", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
+		scanf("%c", &setElement);
+
+		if(setElement == 'Y')
+			SetElementalBoard(&game->Board);
+	}
 
 	while(game->Round < 9)
 	{
 		prevRound = game->Round;
 		PrintGame(*game);
 
-		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
 		while( getchar() != '\n' );
+		printf("\n%s%s Player Turn. Pick a Card and a slot to play, separated by space: \n%s", game->PlayerTurn->TxtColor, game->PlayerTurn->Name, colorReset);
 		scanf("%i %i", &cardNo, &slotNo);
 
 		if(cardNo > 0 && cardNo <= 5 && slotNo > 0 && slotNo <= 9)
@@ -1675,7 +1813,7 @@ void Ex2PlayAdvisor(Game *game)
 }
 
 void ExSameWallDoubleA(Game *game)
-{
+{/*
 	ResetGame(game);
 
 	game->Rules.Elemental = 'Y';
@@ -1708,7 +1846,120 @@ void ExSameWallDoubleA(Game *game)
 		{"FNAWNNNNN"}
 	};
 
-	StartGameAuto(game, &game->Player[0], *playsArray, 9, *boardSetupArray, 1);
+	StartGameAuto(game, &game->Player[0], *playsArray, 9, *boardSetupArray, 1);*/
+
+	/*ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'Y';
+
+	int BlueCards[] = {3453,5624,7581,6273,2144};
+	int RedCards[] = {9673,7742,6584,3521,6847};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{1,7},
+		{5,3},
+		{2,1},
+		{2,4},
+		{3,6},
+		{3,2},
+		{4,5},
+		{1,8},
+		{5,9}
+	};
+
+	char boardSetupArray[][9] = 
+	{
+		{"FNLNNNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[1], *playsArray, 9, *boardSetupArray, 1);*/
+
+	/*ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'Y';
+
+	int BlueCards[] = {5199,6545,8358,6565,2144};
+	int RedCards[] = {4452,5135,6112,8673,6845};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{5,7},
+		{1,5},
+		{2,4},
+		{5,8},
+		{4,2},
+		{2,1},
+		{3,9},
+		{4,3},
+		{1,6},
+		{1,1},
+		{1,2},
+		{2,4},
+		{2,5},
+		{3,6},
+		{3,3},
+		{4,7},
+		{4,9},
+		{5,8}
+	};
+
+	char boardSetupArray[][9] = 
+	{
+		{"FANANNNNN"},
+		{"NNNNFNNNN"}
+	};
+
+	StartGameAuto(game, &game->Player[0], *playsArray, 18, *boardSetupArray, 2);*/
+
+	ResetGame(game);
+
+	game->Rules.Elemental = 'Y';
+	game->Rules.Plus = 'Y';
+	game->Rules.Same = 'Y';
+	game->Rules.SameWall = 'Y';
+	game->Rules.SuddenDeath = 'Y';
+
+	int BlueCards[] = {4243,6627,8528,7131,1541};
+	int RedCards[] = {6632,6545,5574,6845,8854};
+	
+	LoadCardsAuto(&game->Player[0], BlueCards);
+	LoadCardsAuto(&game->Player[1], RedCards);
+
+	int playsArray[][2] = 
+	{
+		{1,1},
+		{1,4},
+		{2,3},
+		{2,2},
+		{3,5},
+		{4,7},
+		{4,8},
+		{3,9},
+		{5,6}
+	};
+
+	char boardSetupArray[][9] = 
+	{
+		{"NEPNINNPL"},
+		{"NNNINENNF"}
+	};
+
+	StartGameAuto(game, &game->Player[1], *playsArray, 9, *boardSetupArray, 2);
 }
 
 void Test(Game *game)
@@ -1816,9 +2067,6 @@ void main(void)
 					if(Game.Rules.SuddenDeath == 'Y' && CalcScore(Game, &Game.Player[0]) == 5)
 					{
 						SuddenDeath(&Game);
-
-						if(Game.Rules.Elemental == 'Y')
-							SetElementalBoard(&Game.Board);
 					}
 					else
 					{
@@ -1842,6 +2090,3 @@ void main(void)
 		printf("\n###################################################################################################\n\n\n");
 	}
 }
-
-//#testar sudden death
-//rever uso do copygame no start game
